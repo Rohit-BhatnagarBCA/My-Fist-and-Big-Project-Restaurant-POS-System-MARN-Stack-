@@ -153,10 +153,10 @@ The frontend runs on Vite's default port and talks to the backend via `VITE_BACK
 
 ## 📺 Resources
 
-<!-- - 🎬 [YouTube tutorial playlist](https://www.youtube.com/playlist?list=PL9OdiypqS7Nk0DHnSNFIi8RgEFJCIWB6X)
+- 🎬 [YouTube tutorial playlist](https://www.youtube.com/playlist?list=PL9OdiypqS7Nk0DHnSNFIi8RgEFJCIWB6X)
 - 📦 [Project assets](https://drive.google.com/drive/folders/193N-F1jpzyfPCRCLc9wCyaxjYu2K6PC_)
 - 🗺️ [Original flow chart](https://app.eraser.io/workspace/IcU1b6EHu9ZyS9JKi0aY?origin=share)
-- 💡 [UI/UX design reference](https://www.behance.net/gallery/210280099/Restaurant-POS-System-Point-of-Sale-UIUX-Design) -->
+- 💡 [UI/UX design reference](https://www.behance.net/gallery/210280099/Restaurant-POS-System-Point-of-Sale-UIUX-Design)
 
 ---
 
