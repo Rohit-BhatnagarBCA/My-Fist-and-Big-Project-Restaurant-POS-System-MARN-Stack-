@@ -6,6 +6,7 @@ import { formatDateAndTime, getAvatarName } from "../../utils/index";
 
 const OrderCard = ({ order, onClick }) => {
   const isReady = order.orderStatus === "Ready";
+  const isPacking = order.orderType === "Packing" || !order.table;
 
   return (
     <motion.div
@@ -20,16 +21,31 @@ const OrderCard = ({ order, onClick }) => {
         </button>
         <div className="flex items-center justify-between w-full gap-2 min-w-0">
           <div className="flex flex-col items-start gap-1 min-w-0">
-            <h1 className="text-[#F3EEE3] text-base font-semibold tracking-wide truncate">
-              {order.customerDetails.name}
-            </h1>
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-[#F3EEE3] text-base font-semibold tracking-wide truncate">
+                {order.customerDetails.name}
+              </h1>
+              {/* Order-type badge — same look as the Available/Booked pill on TableCard */}
+              <span
+                className={`shrink-0 flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                  isPacking
+                    ? "bg-[#3a2c1f] text-[#e0a35c]"
+                    : "bg-[#1f3a2c] text-[#8FB89C]"
+                }`}
+              >
+                <FaCircle size={6} />
+                {isPacking ? "Packing" : "On Table"}
+              </span>
+            </div>
             <p className="text-[#7d8797] text-xs">
-              #{Math.floor(new Date(order.orderDate).getTime())} / Dine in
+              #{Math.floor(new Date(order.orderDate).getTime())}
             </p>
-            <p className="text-[#7d8797] text-xs">
-              Table <FaLongArrowAltRight className="ml-1 inline" size={10} />{" "}
-              {order.table?.tableNo ?? "N/A"}
-            </p>
+            {!isPacking && (
+              <p className="text-[#7d8797] text-xs">
+                Table <FaLongArrowAltRight className="ml-1 inline" size={10} />{" "}
+                {order.table?.tableNo ?? "N/A"}
+              </p>
+            )}
           </div>
           <div className="flex flex-col items-end gap-2 shrink-0">
             {isReady ? (

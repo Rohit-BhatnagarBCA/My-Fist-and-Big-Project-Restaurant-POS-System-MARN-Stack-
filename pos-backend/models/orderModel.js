@@ -10,6 +10,13 @@ const orderSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    // "Dine In" orders are tied to a table; "Packing" (takeaway/parcel)
+    // orders have no table at all.
+    orderType: {
+        type: String,
+        enum: ["Dine In", "Packing"],
+        default: "Dine In"
+    },
     orderDate: {
         type: Date,
         default: Date.now // Removed parentheses () so it evaluates at creation time, not file load time

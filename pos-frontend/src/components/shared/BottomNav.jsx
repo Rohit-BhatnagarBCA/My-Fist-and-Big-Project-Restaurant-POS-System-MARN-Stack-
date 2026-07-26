@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaHome } from "react-icons/fa";
-import { MdOutlineReorder, MdTableBar } from "react-icons/md";
+import { MdOutlineReorder, MdTableBar, MdOutlineTakeoutDining } from "react-icons/md";
 import { CiCircleMore } from "react-icons/ci";
 import { BiSolidDish } from "react-icons/bi";
 import { FiUser, FiPhone } from "react-icons/fi";
@@ -33,6 +33,7 @@ const BottomNav = () => {
   const [guestCount, setGuestCount] = useState(0);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [orderType, setOrderType] = useState("Dine In");
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
@@ -49,8 +50,16 @@ const BottomNav = () => {
   const isActive = (path) => location.pathname === path;
 
   const handleCreateOrder = () => {
-    dispatch(setCustomer({ name, phone, guests: guestCount }));
-    navigate("/tables");
+    const isPacking = orderType === "Packing";
+    dispatch(
+      setCustomer({
+        name: isPacking ? "Packing Order" : name,
+        phone: isPacking ? "N/A" : phone,
+        guests: guestCount,
+        orderType,
+      })
+    );
+    navigate(isPacking ? "/menu" : "/tables");
   };
 
   const fabDisabled = isActive("/tables") || isActive("/menu");
@@ -143,38 +152,72 @@ const BottomNav = () => {
 
           <div>
             <label className={`${labelFont} block text-[#8a806c] mb-2 text-[10px] tracking-widest`}>
-              CUSTOMER NAME
+              ORDER TYPE
             </label>
-            <div className="flex items-center gap-3 border-b-2 border-[#C9BFAC] focus-within:border-[#BD5D31] transition-colors py-2">
-              <FiUser className="text-[#8a806c] shrink-0" size={16} />
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                type="text"
-                placeholder="Enter customer name"
-                style={{ cursor: penCursor }}
-                className="bg-transparent flex-1 text-[#2A241D] placeholder:text-[#a89e8b] focus:outline-none text-sm"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setOrderType("Dine In")}
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold text-sm border transition-colors ${
+                  orderType === "Dine In"
+                    ? "bg-[#BD5D31] border-[#BD5D31] text-[#F3EEE3]"
+                    : "bg-[#e7e0d1] border-transparent text-[#6b6252] hover:border-[#BD5D31]/40"
+                }`}
+              >
+                <MdTableBar size={18} /> On Table
+              </button>
+              <button
+                type="button"
+                onClick={() => setOrderType("Packing")}
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold text-sm border transition-colors ${
+                  orderType === "Packing"
+                    ? "bg-[#BD5D31] border-[#BD5D31] text-[#F3EEE3]"
+                    : "bg-[#e7e0d1] border-transparent text-[#6b6252] hover:border-[#BD5D31]/40"
+                }`}
+              >
+                <MdOutlineTakeoutDining size={18} /> Packing
+              </button>
             </div>
           </div>
 
-          <div>
-            <label className={`${labelFont} block text-[#8a806c] mb-2 mt-4 text-[10px] tracking-widest`}>
-              CUSTOMER PHONE
-            </label>
-            <div className="flex items-center gap-3 border-b-2 border-[#C9BFAC] focus-within:border-[#BD5D31] transition-colors py-2">
-              <FiPhone className="text-[#8a806c] shrink-0" size={16} />
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                type="tel"
-                maxLength={10}
-                placeholder="10-digit number"
-                style={{ cursor: penCursor }}
-                className="bg-transparent flex-1 text-[#2A241D] placeholder:text-[#a89e8b] focus:outline-none text-sm"
-              />
-            </div>
-          </div>
+          {orderType !== "Packing" && (
+            <>
+              <div>
+                <label className={`${labelFont} block text-[#8a806c] mb-2 mt-5 text-[10px] tracking-widest`}>
+                  CUSTOMER NAME
+                </label>
+                <div className="flex items-center gap-3 border-b-2 border-[#C9BFAC] focus-within:border-[#BD5D31] transition-colors py-2">
+                  <FiUser className="text-[#8a806c] shrink-0" size={16} />
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    type="text"
+                    placeholder="Enter customer name"
+                    style={{ cursor: penCursor }}
+                    className="bg-transparent flex-1 text-[#2A241D] placeholder:text-[#a89e8b] focus:outline-none text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className={`${labelFont} block text-[#8a806c] mb-2 mt-4 text-[10px] tracking-widest`}>
+                  CUSTOMER PHONE
+                </label>
+                <div className="flex items-center gap-3 border-b-2 border-[#C9BFAC] focus-within:border-[#BD5D31] transition-colors py-2">
+                  <FiPhone className="text-[#8a806c] shrink-0" size={16} />
+                  <input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    type="tel"
+                    maxLength={10}
+                    placeholder="10-digit number"
+                    style={{ cursor: penCursor }}
+                    className="bg-transparent flex-1 text-[#2A241D] placeholder:text-[#a89e8b] focus:outline-none text-sm"
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           <div>
             <label className={`${labelFont} block mb-2 mt-5 text-[10px] tracking-widest text-[#8a806c]`}>

@@ -13,6 +13,7 @@ const TABS = [
   { id: "progress", label: "In Progress" },
   { id: "ready", label: "Ready" },
   { id: "completed", label: "Completed" },
+  { id: "packing", label: "Packing" },
 ];
 
 const Orders = () => {
@@ -46,6 +47,7 @@ const Orders = () => {
   const filteredOrders = useMemo(() => {
     return sortedOrders.filter((order) => {
       const tableFreed = !order.table || order.table.status === "Available";
+      const isPacking = order.orderType === "Packing" || !order.table;
 
       switch (status) {
         case "progress":
@@ -56,6 +58,9 @@ const Orders = () => {
         case "completed":
           // Ready AND table has been freed — the order cycle is fully done.
           return order.orderStatus === "Ready" && tableFreed;
+        case "packing":
+          // All Packing/takeaway orders, regardless of their status.
+          return isPacking;
         default:
           return true;
       }
@@ -66,9 +71,11 @@ const Orders = () => {
     if (tabId === "all") return sortedOrders.length;
     return sortedOrders.filter((order) => {
       const tableFreed = !order.table || order.table.status === "Available";
+      const isPacking = order.orderType === "Packing" || !order.table;
       if (tabId === "progress") return order.orderStatus === "In Progress";
       if (tabId === "ready") return order.orderStatus === "Ready" && !tableFreed;
       if (tabId === "completed") return order.orderStatus === "Ready" && tableFreed;
+      if (tabId === "packing") return isPacking;
       return false;
     }).length;
   };

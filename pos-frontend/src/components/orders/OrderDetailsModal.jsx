@@ -1,11 +1,14 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import { IoMdClose } from "react-icons/io";
-import { FaCheckDouble } from "react-icons/fa";
+import { FaCheckDouble, FaPlus } from "react-icons/fa";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { enqueueSnackbar } from "notistack";
 import { updateOrderStatus, updateTable } from "../../https/index";
 import { formatDateAndTime, getAvatarName } from "../../utils/index";
+import { setCustomer, updateTable as updateTableInStore } from "../../redux/slices/customerSlice";
 
 const labelFont = "font-['Space_Mono',_monospace]";
 
@@ -46,11 +49,17 @@ const ConfirmDialog = ({ title, message, onConfirm, onCancel, isLoading }) => (
 
 const OrderDetailsModal = ({ order, onClose }) => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [confirmFree, setConfirmFree] = useState(false);
 
   const isReady = order.orderStatus === "Ready";
   const hasTable = Boolean(order.table);
   const tableIsBooked = hasTable && order.table.status !== "Available";
+  const isPacking = order.orderType === "Packing" || !hasTable;
+  // Add More Items works for both Dine In and Packing orders — just needs
+  // the order to still be in progress. Free Table stays Dine-In-only below.
+  const canAddMoreItems = !isReady;
 
   const statusMutation = useMutation({
     mutationFn: (orderStatus) =>
@@ -58,11 +67,37 @@ const OrderDetailsModal = ({ order, onClose }) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       enqueueSnackbar("Order marked as Ready!", { variant: "success" });
+      // Auto-close the popup once the status update goes through.
+      onClose();
     },
     onError: () => {
       enqueueSnackbar("Failed to update order status!", { variant: "error" });
     },
   });
+
+  // Sends the waiter back to the Menu screen pre-loaded with this table's
+  // customer, with existingOrderId set so Bill.jsx appends the new cart
+  // into this same order's bill instead of creating a separate order.
+  const handleAddMoreItems = () => {
+    dispatch(
+      setCustomer({
+        name: order.customerDetails.name,
+        phone: order.customerDetails.phone,
+        guests: order.customerDetails.guests,
+        orderType: isPacking ? "Packing" : "Dine In",
+        existingOrderId: order._id,
+      })
+    );
+    if (hasTable) {
+      dispatch(
+        updateTableInStore({
+          table: { tableId: order.table._id, tableNo: order.table.tableNo },
+        })
+      );
+    }
+    onClose();
+    navigate("/menu");
+  };
 
   const freeTableMutation = useMutation({
     mutationFn: (tableId) =>
@@ -72,6 +107,8 @@ const OrderDetailsModal = ({ order, onClose }) => {
       queryClient.invalidateQueries({ queryKey: ["tables"] });
       enqueueSnackbar("Table marked as available!", { variant: "success" });
       setConfirmFree(false);
+      // Auto-close the popup, same as the Mark as Ready flow.
+      onClose();
     },
     onError: (error) => {
       enqueueSnackbar(
@@ -147,7 +184,9 @@ const OrderDetailsModal = ({ order, onClose }) => {
                 {order.customerDetails.name}
               </p>
               <p className="text-xs text-[#8a806c]">
-                Table {order.table?.tableNo ?? "N/A"} · Dine in
+                {isPacking
+                  ? "Packing / Takeaway"
+                  : `Table ${order.table?.tableNo ?? "N/A"} · Dine in`}
               </p>
             </div>
           </div>
@@ -228,6 +267,17 @@ const OrderDetailsModal = ({ order, onClose }) => {
               }`}
             >
               {statusMutation.isPending ? "UPDATING..." : "MARK AS READY"}
+            </motion.button>
+          )}
+
+          {canAddMoreItems && (
+            <motion.button
+              whileHover={{ scale: 1.015 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={handleAddMoreItems}
+              className={`w-full rounded-md py-3 text-sm font-bold tracking-widest ${labelFont} mb-3 border border-[#BD5D31] text-[#BD5D31] hover:bg-[#BD5D31]/10 transition-colors flex items-center justify-center gap-2`}
+            >
+              <FaPlus size={12} /> ADD MORE ITEMS
             </motion.button>
           )}
 

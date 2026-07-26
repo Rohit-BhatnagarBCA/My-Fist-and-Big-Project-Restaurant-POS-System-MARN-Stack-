@@ -7,6 +7,7 @@ import { RiLoader4Line } from "react-icons/ri";
 import { getTotalPrice } from "../../redux/slices/cartSlice";
 import {
   addOrder,
+  addItemsToOrder,
   createOrderRazorpay,
   updateTable,
   verifyPaymentRazorpay,
@@ -103,7 +104,24 @@ const Bill = () => {
     }
   };
 
+  const isAppendMode = Boolean(customerData.existingOrderId);
+
   const handlePlaceOrder = async () => {
+    if (cartData.length === 0) {
+      enqueueSnackbar("Add items to the cart first!", { variant: "warning" });
+      return;
+    }
+
+    // Adding items to an already-placed order — no payment step needed,
+    // the order's existing paymentMethod stays as-is.
+    if (isAppendMode) {
+      addItemsMutation.mutate({
+        orderId: customerData.existingOrderId,
+        items: cartData,
+      });
+      return;
+    }
+
     if (!paymentMethod) {
       enqueueSnackbar("Please select a payment method!", {
         variant: "warning",
@@ -149,13 +167,16 @@ const Bill = () => {
                 guests: customerData.guests,
               },
               orderStatus: "In Progress",
+              orderType: customerData.orderType,
               bills: {
                 total: total,
                 tax: tax,
                 totalWithTax: totalPriceWithTax,
               },
               items: cartData,
-              table: customerData.table.tableId,
+              ...(customerData.orderType !== "Packing" && {
+                table: customerData.table?.tableId,
+              }),
               paymentMethod: paymentMethod,
               paymentData: {
                 razorpay_order_id: response.razorpay_order_id,
@@ -191,13 +212,16 @@ const Bill = () => {
           guests: customerData.guests,
         },
         orderStatus: "In Progress",
+        orderType: customerData.orderType,
         bills: {
           total: total,
           tax: tax,
           totalWithTax: totalPriceWithTax,
         },
         items: cartData,
-        table: customerData.table.tableId,
+        ...(customerData.orderType !== "Packing" && {
+          table: customerData.table?.tableId,
+        }),
         paymentMethod: paymentMethod,
       };
       orderMutation.mutate(orderData);
@@ -210,16 +234,23 @@ const Bill = () => {
       const { data, stockAdjustments } = resData.data;
       setOrderInfo(data);
       queryClient.invalidateQueries({ queryKey: ["dishes"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
 
-      const tableData = {
-        status: "Booked",
-        orderId: data._id,
-        tableId: data.table,
-      };
+      if (data.table) {
+        const tableData = {
+          status: "Booked",
+          orderId: data._id,
+          tableId: data.table,
+        };
 
-      setTimeout(() => {
-        tableUpdateMutation.mutate(tableData);
-      }, 1500);
+        setTimeout(() => {
+          tableUpdateMutation.mutate(tableData);
+        }, 1500);
+      } else {
+        // Packing orders have no table to book — just clear the cart/customer.
+        dispatch(removeCustomer());
+        dispatch(removeAllItems());
+      }
 
       // Backend auto-adjusts quantities down to whatever stock was actually
       // available (e.g. two waiters ordered the same dish at once) — make
@@ -248,6 +279,38 @@ const Bill = () => {
     },
   });
 
+  const addItemsMutation = useMutation({
+    mutationFn: (reqData) => addItemsToOrder(reqData),
+    onSuccess: (resData) => {
+      const { data, stockAdjustments } = resData.data;
+      setOrderInfo(data);
+      queryClient.invalidateQueries({ queryKey: ["dishes"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+
+      if (stockAdjustments && stockAdjustments.length > 0) {
+        stockAdjustments.forEach((adj) => {
+          enqueueSnackbar(
+            `${adj.name}: only ${adj.given} of ${adj.requested} were available — order adjusted.`,
+            { variant: "warning", autoHideDuration: 6000 }
+          );
+        });
+      }
+
+      enqueueSnackbar("Items added to the order!", { variant: "success" });
+      dispatch(removeCustomer());
+      dispatch(removeAllItems());
+      setShowInvoice(true);
+    },
+    onError: (error) => {
+      console.log(error);
+      enqueueSnackbar(
+        error?.response?.data?.message ||
+          "Something went wrong while adding items to the order!",
+        { variant: "error" }
+      );
+    },
+  });
+
   const tableUpdateMutation = useMutation({
     mutationFn: (reqData) => updateTable(reqData),
     onSuccess: (resData) => {
@@ -259,7 +322,10 @@ const Bill = () => {
     },
   });
 
-  const isPlacingOrder = orderMutation.isPending || tableUpdateMutation.isPending;
+  const isPlacingOrder =
+    orderMutation.isPending ||
+    tableUpdateMutation.isPending ||
+    addItemsMutation.isPending;
 
   return (
     <div className="flex flex-col">
@@ -301,30 +367,37 @@ const Bill = () => {
       </div>
 
       {/* Payment Method */}
-      <div className="px-5 mt-2">
-        <p className="text-xs text-[#ababab] font-medium mb-2 tracking-wide">
-          PAYMENT METHOD
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          {paymentOptions.map(({ id, label, icon: Icon }) => {
-            const isActive = paymentMethod === id;
-            return (
-              <motion.button
-                key={id}
-                whileTap={{ scale: 0.96 }}
-                onClick={() => setPaymentMethod(id)}
-                className={`relative flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-colors border ${
-                  isActive
-                    ? "bg-[#2a2a2a] border-yellow-400 text-[#f5f5f5]"
-                    : "bg-[#1f1f1f] border-transparent text-[#ababab] hover:border-[#3a3a3a]"
-                }`}
-              >
-                <Icon
-                  className={isActive ? "text-yellow-400" : "text-[#ababab]"}
-                />
-                {label}
-                {isActive && (
-                  <motion.span
+      {isAppendMode ? (
+        <div className="px-5 mt-2">
+          <p className="text-xs text-[#ababab] font-medium bg-[#1f1f1f] border border-[#3a3a3a] rounded-lg px-4 py-3">
+            These items will be added to the existing order for this table — no new payment needed.
+          </p>
+        </div>
+      ) : (
+        <div className="px-5 mt-2">
+          <p className="text-xs text-[#ababab] font-medium mb-2 tracking-wide">
+            PAYMENT METHOD
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {paymentOptions.map(({ id, label, icon: Icon }) => {
+              const isActive = paymentMethod === id;
+              return (
+                <motion.button
+                  key={id}
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => setPaymentMethod(id)}
+                  className={`relative flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-colors border ${
+                    isActive
+                      ? "bg-[#2a2a2a] border-yellow-400 text-[#f5f5f5]"
+                      : "bg-[#1f1f1f] border-transparent text-[#ababab] hover:border-[#3a3a3a]"
+                  }`}
+                >
+                  <Icon
+                    className={isActive ? "text-yellow-400" : "text-[#ababab]"}
+                  />
+                  {label}
+                  {isActive && (
+                    <motion.span
                     layoutId="payment-check"
                     className="absolute -top-1.5 -right-1.5 text-yellow-400 bg-[#1f1f1f] rounded-full"
                   >
@@ -335,7 +408,8 @@ const Bill = () => {
             );
           })}
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex items-center gap-3 px-5 mt-5 mb-3">
@@ -379,7 +453,7 @@ const Bill = () => {
                 className="flex items-center gap-2"
               >
                 <RiLoader4Line className="animate-spin" />
-                Placing...
+                {isAppendMode ? "Adding..." : "Placing..."}
               </motion.span>
             ) : (
               <motion.span
@@ -388,7 +462,7 @@ const Bill = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                Place Order
+                {isAppendMode ? "Add To Order" : "Place Order"}
               </motion.span>
             )}
           </AnimatePresence>
