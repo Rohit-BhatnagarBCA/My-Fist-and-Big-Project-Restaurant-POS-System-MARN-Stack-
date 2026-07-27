@@ -39,7 +39,7 @@ const Home = () => {
         <Greetings />
         
         {/* Analytics Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 items-stretch w-full gap-4">
+        <div className="grid grid-cols-2 items-stretch w-full gap-3 sm:gap-4">
           <MiniCard
             title="Total Earnings"
             icon={<BsCashCoin />}

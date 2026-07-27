@@ -34,30 +34,30 @@ const MiniCard = ({ title, icon, number, footerNum, prefix = "", onClick }) => {
       onClick={onClick}
       whileHover={{ y: -3 }}
       whileTap={onClick ? { scale: 0.97 } : {}}
-      className={`flex-1 bg-[#1B222B] rounded-xl p-5 flex flex-col justify-between gap-4 ${
+      className={`flex-1 bg-[#1B222B] rounded-xl p-3.5 sm:p-5 flex flex-col justify-between gap-3 sm:gap-4 min-w-0 ${
         onClick ? "cursor-pointer" : ""
       }`}
     >
-      <div className="flex items-center justify-between">
-        <p className={`${labelFont} text-[10px] tracking-widest text-[#7d8797]`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className={`${labelFont} text-[9px] sm:text-[10px] tracking-widest text-[#7d8797] truncate`}>
           {title.toUpperCase()}
         </p>
-        <div className="bg-[#BD5D31]/15 text-[#BD5D31] p-2 rounded-lg text-lg">
+        <div className="bg-[#BD5D31]/15 text-[#BD5D31] p-1.5 sm:p-2 rounded-lg text-base sm:text-lg shrink-0">
           {icon}
         </div>
       </div>
 
-      <h1 className="text-[#F3EEE3] text-3xl font-bold tabular-nums">
+      <h1 className="text-[#F3EEE3] text-xl sm:text-3xl font-bold tabular-nums truncate">
         {prefix}
         {displayValue}
       </h1>
 
-      <p className="text-xs text-[#7d8797] flex items-center gap-1">
-        <span className="flex items-center gap-0.5 text-[#8FB89C] font-semibold">
-          <FiArrowUpRight size={13} />
+      <p className="text-[10px] sm:text-xs text-[#7d8797] flex items-center gap-1 whitespace-nowrap">
+        <span className="flex items-center gap-0.5 text-[#8FB89C] font-semibold shrink-0">
+          <FiArrowUpRight size={12} />
           {footerNum}%
         </span>
-        from last week
+        <span className="truncate">from last week</span>
       </p>
     </motion.div>
   );
