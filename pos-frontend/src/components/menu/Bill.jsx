@@ -35,7 +35,7 @@ const paymentOptions = [
   { id: "Online", label: "Online", icon: FaRegCreditCard },
 ];
 
-const Bill = () => {
+const Bill = ({ onOrderPlaced }) => {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
   const { isConnected, isSupported, printReceipt } = usePrinter();
@@ -268,6 +268,7 @@ const Bill = () => {
         variant: "success",
       });
       setShowInvoice(true);
+      onOrderPlaced?.();
     },
     onError: (error) => {
       console.log(error);
@@ -300,6 +301,7 @@ const Bill = () => {
       dispatch(removeCustomer());
       dispatch(removeAllItems());
       setShowInvoice(true);
+      onOrderPlaced?.();
     },
     onError: (error) => {
       console.log(error);
@@ -328,9 +330,9 @@ const Bill = () => {
     addItemsMutation.isPending;
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col  ">
       {/* Price Summary */}
-      <div className="px-5 pt-3 pb-1">
+      <div className="px-5 pt-3 pb-1 ">
         <div className="flex items-center justify-between py-1.5">
           <p className="text-xs text-[#ababab] font-medium">
             Items ({cartData.length})
