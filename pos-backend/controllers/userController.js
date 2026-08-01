@@ -14,9 +14,12 @@ const register = async (req, res, next) => {
             return next(error);
         }
 
-        const isUserPresent = await User.findOne({email});
+        // Same restaurant can share one email across roles (e.g. Admin +
+        // Kitchen login), differentiated by password. Only block a true
+        // duplicate — same email AND same role.
+        const isUserPresent = await User.findOne({ email, role });
         if(isUserPresent){
-            const error = createHttpError(400, "User already exist!");
+            const error = createHttpError(400, `A ${role} account with this email already exists!`);
             return next(error);
         }
 
@@ -48,19 +51,29 @@ const login = async (req, res, next) => {
             return next(error);
         }
 
-        const isUserPresent = await User.findOne({email});
-        if(!isUserPresent){
+        // Multiple role-accounts can share one email, so fetch all of them
+        // and find the one whose password actually matches.
+        const usersWithEmail = await User.find({email});
+        if(!usersWithEmail.length){
             const error = createHttpError(401, "Invalid Credentials");
             return next(error);
         }
 
-        const isMatch = await bcrypt.compare(password, isUserPresent.password);
-        if(!isMatch){
+        let matchedUser = null;
+        for (const candidate of usersWithEmail) {
+            const isMatch = await bcrypt.compare(password, candidate.password);
+            if (isMatch) {
+                matchedUser = candidate;
+                break;
+            }
+        }
+
+        if(!matchedUser){
             const error = createHttpError(401, "Invalid Credentials");
             return next(error);
         }
 
-        const accessToken = jwt.sign({_id: isUserPresent._id}, config.accessTokenSecret, {
+        const accessToken = jwt.sign({_id: matchedUser._id}, config.accessTokenSecret, {
             expiresIn : '1d'
         });
 
@@ -72,10 +85,10 @@ const login = async (req, res, next) => {
         })
 
         // Never send the password hash back to the client.
-        isUserPresent.password = undefined;
+        matchedUser.password = undefined;
 
         res.status(200).json({success: true, message: "User login successfully!", 
-            data: isUserPresent
+            data: matchedUser
         });
 
 

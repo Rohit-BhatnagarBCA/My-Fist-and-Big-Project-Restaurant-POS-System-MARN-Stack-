@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
 import BottomNav from "../components/shared/BottomNav";
 import Greetings from "../components/home/Greetings";
 import { BsCashCoin } from "react-icons/bs";
@@ -8,10 +9,12 @@ import { MdOutlineReceiptLong } from "react-icons/md";
 import MiniCard from "../components/home/MiniCard";
 import RecentOrders from "../components/home/RecentOrders";
 import PopularDishes from "../components/home/PopularDishes";
+import KitchenBoard from "../components/home/KitchenBoard";
 import { getOrders } from "../https";
 
 const Home = () => {
   const navigate = useNavigate();
+  const { role } = useSelector((state) => state.user);
 
   useEffect(() => {
     document.title = "POS | Home";
@@ -30,6 +33,16 @@ const Home = () => {
     0
   );
   const totalOrders = orders.length;
+
+  // Kitchen doesn't need earnings/analytics — just a live ticket feed.
+  if (role === "Kitchen") {
+    return (
+      <section className="bg-[#12181F] min-h-screen overflow-y-auto select-none">
+        <KitchenBoard />
+        <BottomNav />
+      </section>
+    );
+  }
 
   return (
     <section className="bg-[#12181F] min-h-screen lg:h-[calc(100vh-5rem)] overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row gap-4 px-3 sm:px-6 lg:px-4 py-4 pb-24 lg:pb-4 select-none">

@@ -8,7 +8,7 @@ import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 
 const labelFont = "font-['Space_Mono',_monospace]";
 
-const roles = ["Waiter", "Cashier", "Admin"];
+const roles = ["Waiter", "Cashier", "Kitchen", "Admin"];
 
 const TicketField = ({ label, icon: Icon, children }) => (
   <div>
@@ -134,7 +134,7 @@ const Register = ({ setIsRegister }) => {
         >
           CHOOSE ROLE
         </label>
-        <div className="relative flex bg-[#e7e0d1] rounded-lg p-1 gap-1">
+        <div className="relative grid grid-cols-2 sm:flex bg-[#e7e0d1] rounded-lg p-1 gap-1">
           {roles.map((role) => {
             const active = formData.role === role;
             return (
@@ -142,7 +142,7 @@ const Register = ({ setIsRegister }) => {
                 key={role}
                 type="button"
                 onClick={() => handleRoleSelection(role)}
-                className={`relative flex-1 py-2.5 rounded-md text-sm font-semibold transition-colors z-10 ${
+                className={`relative sm:flex-1 py-2.5 rounded-md text-sm font-semibold transition-colors z-10 ${
                   active ? "text-[#F3EEE3]" : "text-[#6b6252] hover:text-[#2A241D]"
                 }`}
               >

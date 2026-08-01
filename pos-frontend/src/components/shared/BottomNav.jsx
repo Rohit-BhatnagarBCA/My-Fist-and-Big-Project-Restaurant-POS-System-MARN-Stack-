@@ -7,7 +7,7 @@ import { BiSolidDish } from "react-icons/bi";
 import { FiUser, FiPhone } from "react-icons/fi";
 import { useNavigate, useLocation } from "react-router-dom";
 import Modal from "./Modal";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setCustomer } from "../../redux/slices/customerSlice";
 
 const labelFont = "font-['Space_Mono',_monospace]";
@@ -29,6 +29,13 @@ const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
+  const { role } = useSelector((state) => state.user);
+  const isKitchen = role === "Kitchen";
+  // Kitchen staff only need to see live tickets and order status — no
+  // table management, no starting new orders.
+  const visibleNavItems = isKitchen
+    ? navItems.filter((item) => item.path !== "/tables")
+    : navItems;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [guestCount, setGuestCount] = useState(0);
   const [name, setName] = useState("");
@@ -67,7 +74,7 @@ const BottomNav = () => {
   return (
     <>
       <div className="fixed bottom-0 left-0 right-0 bg-[#1B222B] border-t border-[#2a323d] px-2 sm:px-4 h-16 flex items-center justify-around gap-1 z-40">
-        {navItems.map(({ path, label, icon: Icon }) => {
+        {visibleNavItems.map(({ path, label, icon: Icon }) => {
           const active = isActive(path);
           return (
             <button
@@ -100,7 +107,9 @@ const BottomNav = () => {
         </button>
       </div>
 
-      {/* Floating action button */}
+      {/* Floating action button — Kitchen doesn't place new orders */}
+      {!isKitchen && (
+      <>
       <motion.button
         disabled={fabDisabled}
         onClick={openModal}
@@ -265,6 +274,8 @@ const BottomNav = () => {
           </motion.button>
         </div>
       </Modal>
+      </>
+      )}
     </>
   );
 };

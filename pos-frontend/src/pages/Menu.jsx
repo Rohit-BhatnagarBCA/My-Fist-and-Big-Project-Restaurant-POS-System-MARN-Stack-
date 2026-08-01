@@ -61,9 +61,9 @@ const Menu = () => {
       </div>
 
       {/* Body */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-3 px-4 sm:px-6 lg:px-0 lg:pl-10 pb-3 min-h-0 overflow-hidden ">
+      <div className="flex-1 flex flex-col lg:flex-row gap-3 px-4 sm:px-6 lg:px-0 lg:pl-10 pb-3 min-h-0 overflow-hidden">
         {/* Left: Menu browsing — takes the full screen on mobile */}
-        <div className="flex-1 lg:flex-[3] min-h-0 overflow-y-auto scrollbar-hide pb-26 lg:pb-0">
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide pb-24 lg:pb-4 lg:mr-[420px]">
           <MenuContainer />
         </div>
 
@@ -73,7 +73,7 @@ const Menu = () => {
         <div
           className={`fixed inset-x-0 bottom-0 top-16 z-[45] bg-[#1a1a1a] rounded-t-2xl flex flex-col min-h-0 overflow-y-auto scrollbar-hide transition-transform duration-300 ease-out
           ${isCartOpen ? "translate-y-0" : "translate-y-full"}
-          lg:static lg:inset-auto lg:translate-y-0 lg:z-auto lg:rounded-xl lg:w-[400px] lg:shrink-0 lg:flex-none lg:mt-4 lg:mr-3`}
+          lg:inset-x-auto lg:right-3 lg:top-24 lg:bottom-20 lg:translate-y-0 lg:rounded-xl lg:w-[400px]`}
         >
           {/* Drawer handle / close button — mobile only */}
           <div className="flex items-center justify-between px-4 py-3 lg:hidden shrink-0 border-b border-[#2a2a2a]">
@@ -95,7 +95,7 @@ const Menu = () => {
             <CartInfo />
           </div>
 
-          <div className="shrink-0 border-t-2 border-[#2a2a2a] mt-auto">
+          <div className="shrink-0 border-t-2 border-[#2a2a2a]">
             <Bill onOrderPlaced={() => setIsCartOpen(false)} />
           </div>
         </div>

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { IoMdClose } from "react-icons/io";
 import { FaCheckDouble, FaPlus } from "react-icons/fa";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -51,6 +51,8 @@ const OrderDetailsModal = ({ order, onClose }) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { role } = useSelector((state) => state.user);
+  const isKitchen = role === "Kitchen";
   const [confirmFree, setConfirmFree] = useState(false);
 
   const isReady = order.orderStatus === "Ready";
@@ -59,7 +61,9 @@ const OrderDetailsModal = ({ order, onClose }) => {
   const isPacking = order.orderType === "Packing" || !hasTable;
   // Add More Items works for both Dine In and Packing orders — just needs
   // the order to still be in progress. Free Table stays Dine-In-only below.
-  const canAddMoreItems = !isReady;
+  // Kitchen only marks orders Ready — billing and table handling stay with
+  // front-of-house.
+  const canAddMoreItems = !isReady && !isKitchen;
 
   const statusMutation = useMutation({
     mutationFn: (orderStatus) =>
@@ -145,7 +149,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
           <div className="flex items-start justify-between mb-1">
             <div>
               <p className={`${labelFont} text-[10px] tracking-widest text-[#BD5D31] mb-1`}>
-                ORDER RECEIPT
+                {isKitchen ? "KITCHEN TICKET" : "ORDER RECEIPT"}
               </p>
               <h2 className="text-xl font-bold text-[#2A241D]">
                 #{Math.floor(new Date(order.orderDate).getTime())}
@@ -198,46 +202,54 @@ const OrderDetailsModal = ({ order, onClose }) => {
           <div className="space-y-2 mb-4">
             {order.items.map((item, idx) => (
               <div key={idx} className="flex items-baseline gap-2">
-                <span className="text-sm text-[#2A241D] shrink-0">
+                <span className={`text-[#2A241D] shrink-0 ${isKitchen ? "text-base font-semibold" : "text-sm"}`}>
                   {item.name} <span className="text-[#8a806c]">x{item.quantity}</span>
                 </span>
-                <span className="flex-1 border-b border-dotted border-[#c9bfac] mb-1" />
-                <span className="text-sm font-semibold text-[#2A241D] shrink-0">
-                  ₹{item.price}
-                </span>
+                {!isKitchen && (
+                  <>
+                    <span className="flex-1 border-b border-dotted border-[#c9bfac] mb-1" />
+                    <span className="text-sm font-semibold text-[#2A241D] shrink-0">
+                      ₹{item.price}
+                    </span>
+                  </>
+                )}
               </div>
             ))}
           </div>
 
-          <div
-            className="h-px w-full mb-4"
-            style={{
-              backgroundImage:
-                "linear-gradient(to right, #C9BFAC 50%, transparent 0%)",
-              backgroundSize: "8px 1px",
-              backgroundRepeat: "repeat-x",
-            }}
-          />
+          {!isKitchen && (
+            <>
+              <div
+                className="h-px w-full mb-4"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(to right, #C9BFAC 50%, transparent 0%)",
+                  backgroundSize: "8px 1px",
+                  backgroundRepeat: "repeat-x",
+                }}
+              />
 
-          {/* Bills */}
-          <div className="space-y-1.5 mb-2">
-            <div className="flex justify-between text-sm text-[#6b6252]">
-              <span>Subtotal</span>
-              <span>₹{order.bills.total.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-[#6b6252]">
-              <span>Tax</span>
-              <span>₹{order.bills.tax.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-base font-bold text-[#2A241D] pt-1">
-              <span>Total</span>
-              <span>₹{order.bills.totalWithTax.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-xs text-[#8a806c] pt-1">
-              <span>Payment method</span>
-              <span>{order.paymentMethod}</span>
-            </div>
-          </div>
+              {/* Bills */}
+              <div className="space-y-1.5 mb-2">
+                <div className="flex justify-between text-sm text-[#6b6252]">
+                  <span>Subtotal</span>
+                  <span>₹{order.bills.total.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-[#6b6252]">
+                  <span>Tax</span>
+                  <span>₹{order.bills.tax.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-base font-bold text-[#2A241D] pt-1">
+                  <span>Total</span>
+                  <span>₹{order.bills.totalWithTax.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-[#8a806c] pt-1">
+                  <span>Payment method</span>
+                  <span>{order.paymentMethod}</span>
+                </div>
+              </div>
+            </>
+          )}
 
           <div
             className="h-px w-full my-4"
@@ -281,7 +293,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
             </motion.button>
           )}
 
-          {hasTable && tableIsBooked && (
+          {!isKitchen && hasTable && tableIsBooked && (
             <motion.button
               whileHover={isReady ? { scale: 1.015 } : {}}
               whileTap={isReady ? { scale: 0.97 } : {}}
@@ -298,7 +310,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
             </motion.button>
           )}
 
-          {!isReady && hasTable && tableIsBooked && (
+          {!isKitchen && !isReady && hasTable && tableIsBooked && (
             <p className="text-[10px] text-[#a89e8b] text-center mt-2">
               Table can be freed once this order is marked Ready.
             </p>

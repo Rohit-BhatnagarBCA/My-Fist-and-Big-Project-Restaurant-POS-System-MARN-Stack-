@@ -330,7 +330,7 @@ const Bill = ({ onOrderPlaced }) => {
     addItemsMutation.isPending;
 
   return (
-    <div className="flex flex-col  ">
+    <div className="flex flex-col   ">
       {/* Price Summary */}
       <div className="px-5 pt-3 pb-1 ">
         <div className="flex items-center justify-between py-1.5">

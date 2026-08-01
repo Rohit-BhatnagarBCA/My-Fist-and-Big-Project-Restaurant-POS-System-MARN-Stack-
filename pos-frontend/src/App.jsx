@@ -43,7 +43,7 @@ function Layout() {
         <Route
           path="/tables"
           element={
-            <ProtectedRoutes>
+            <ProtectedRoutes blockRoles={["Kitchen"]}>
               <Tables />
             </ProtectedRoutes>
           }
@@ -51,7 +51,7 @@ function Layout() {
         <Route
           path="/menu"
           element={
-            <ProtectedRoutes>
+            <ProtectedRoutes blockRoles={["Kitchen"]}>
               <Menu />
             </ProtectedRoutes>
           }
@@ -59,7 +59,7 @@ function Layout() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoutes>
+            <ProtectedRoutes blockRoles={["Kitchen"]}>
               <Dashboard />
             </ProtectedRoutes>
           }
@@ -70,10 +70,13 @@ function Layout() {
   );
 }
 
-function ProtectedRoutes({ children }) {
-  const { isAuth } = useSelector((state) => state.user);
+function ProtectedRoutes({ children, blockRoles }) {
+  const { isAuth, role } = useSelector((state) => state.user);
   if (!isAuth) {
     return <Navigate to="/auth" />;
+  }
+  if (blockRoles && blockRoles.includes(role)) {
+    return <Navigate to="/" />;
   }
 
   return children;

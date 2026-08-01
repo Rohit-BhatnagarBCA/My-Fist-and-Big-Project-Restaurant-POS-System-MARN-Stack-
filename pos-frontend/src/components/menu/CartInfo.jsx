@@ -7,30 +7,36 @@ import { removeItem } from "../../redux/slices/cartSlice";
 
 const CartInfo = () => {
   const cartData = useSelector((state) => state.cart);
-  const scrollRef = useRef();
+  const scrollRef = useRef(null);
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: "smooth",
-      });
-    }
-  }, [cartData]);
+    // Delay scroll calculation slightly so Framer Motion layouts settle properly
+    const timeout = setTimeout(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTo({
+          top: scrollRef.current.scrollHeight,
+          behavior: "smooth",
+        });
+      }
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [cartData.length]); // Track cartData.length directly
 
   const handleRemove = (itemId) => {
     dispatch(removeItem(itemId));
   };
 
   return (
-    <div className="px-4 py-2 ">
+    <div className="px-4 py-2">
       <h1 className="text-lg text-[#e4e4e4] font-semibold tracking-wide">
         Order Details
       </h1>
 
+      {/* Tailwind classes adjusted: Fixed base height for mobile, expanded for desktop */}
       <div
-        className="mt-4 overflow-y-scroll h-[220px] sm:h-[180px] scrollbar-hide"
+        className="mt-4 overflow-y-auto h-[220px] md:h-[350px] lg:h-[400px] scrollbar-hide"
         ref={scrollRef}
       >
         {cartData.length === 0 ? (
@@ -49,7 +55,7 @@ const CartInfo = () => {
                 transition={{ duration: 0.2 }}
                 className="bg-[#1f1f1f] rounded-lg px-4 py-4 mb-2"
               >
-                <div className="flex items-center justify-between ">
+                <div className="flex items-center justify-between">
                   <h1 className="text-[#ababab] font-semibold tracking-wide text-md truncate pr-2">
                     {item.name}
                   </h1>
