@@ -11,32 +11,6 @@ import OrderDetailsModal from "../orders/OrderDetailsModal";
 // ticket board (the screen kitchen stares at all shift) light and fast.
 const StockPanel = lazy(() => import("./StockPanel"));
 
-// A short two-tone chime built with the Web Audio API — no audio file to
-// ship, so it stays lightweight and works the moment this loads.
-const playNewOrderChime = () => {
-  try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    const ctx = new AudioCtx();
-    const now = ctx.currentTime;
-    [880, 1108].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      const start = now + i * 0.16;
-      gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(0.3, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.4);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(start);
-      osc.stop(start + 0.45);
-    });
-  } catch (e) {
-    // Sound is a nice-to-have — never let it break the board.
-  }
-};
-
 const KitchenBoard = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isStockOpen, setIsStockOpen] = useState(false);
@@ -69,7 +43,6 @@ const KitchenBoard = () => {
 
     const newlyArrived = activeOrders.filter((o) => !knownIds.current.has(o._id));
     if (newlyArrived.length > 0) {
-      playNewOrderChime();
       setFlashIds(newlyArrived.map((o) => o._id));
       setTimeout(() => setFlashIds([]), 2500);
     }

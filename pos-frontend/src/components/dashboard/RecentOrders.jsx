@@ -51,7 +51,7 @@ const exportOrdersToExcel = (orders) => {
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
   const workbook = XLSX.utils.book_new();
-  XXLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
   XLSX.writeFile(workbook, `orders-backup-${todayStr()}.xlsx`);
 };
 

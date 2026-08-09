@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import { Home, Auth, Orders, Tables, Menu, Dashboard } from "./pages";
 import Header from "./components/shared/Header";
+import NotificationListener from "./components/shared/NotificationListener";
 import { useSelector } from "react-redux";
 import useLoadData from "./hooks/useLoadData";
 import FullScreenLoader from "./components/shared/FullScreenLoader"
@@ -21,6 +22,9 @@ function Layout() {
 
   return (
     <>
+      {/* Lives here (not inside a Route) so it keeps polling for
+          notifications no matter which page the person navigates to. */}
+      <NotificationListener />
       {!hideHeaderRoutes.includes(location.pathname) && <Header />}
       <Routes>
         <Route
@@ -59,7 +63,7 @@ function Layout() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoutes blockRoles={["Kitchen"]}>
+            <ProtectedRoutes blockRoles={["Kitchen", "Waiter"]}>
               <Dashboard />
             </ProtectedRoutes>
           }
