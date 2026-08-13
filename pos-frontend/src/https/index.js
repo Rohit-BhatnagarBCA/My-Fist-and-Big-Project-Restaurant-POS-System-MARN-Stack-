@@ -8,6 +8,14 @@ export const register = (data) => axiosWrapper.post("/api/user/register", data);
 export const getUserData = () => axiosWrapper.get("/api/user");
 export const logout = () => axiosWrapper.post("/api/user/logout");
 
+// Registration Payment Endpoints (public — no account exists yet)
+export const quoteRegistrationPrice = (data) =>
+  axiosWrapper.post("/api/registration-payment/quote", data);
+export const createRegistrationOrder = (data) =>
+  axiosWrapper.post("/api/registration-payment/create-order", data);
+export const verifyAndRegister = (data) =>
+  axiosWrapper.post("/api/registration-payment/verify-and-register", data);
+
 // Table Endpoints
 export const addTable = (data) => axiosWrapper.post("/api/table/", data);
 export const getTables = () => axiosWrapper.get("/api/table");

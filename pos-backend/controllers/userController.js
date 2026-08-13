@@ -73,6 +73,29 @@ const login = async (req, res, next) => {
             return next(error);
         }
 
+        // Subscription gate — one-time payment plans, so access is cut off
+        // once the paid period ends until it's renewed.
+        const now = new Date();
+        if (matchedUser.role === "Admin") {
+            if (!matchedUser.subscription?.expiryDate || new Date(matchedUser.subscription.expiryDate) < now) {
+                const error = createHttpError(402, "Your subscription has expired. Please renew to continue.");
+                return next(error);
+            }
+        } else {
+            const linkedEmail = matchedUser.subscription?.linkedAdminEmail;
+            if (linkedEmail) {
+                // Staff account riding on an Admin's plan — check THEIR expiry.
+                const admin = await User.findOne({ email: linkedEmail, role: "Admin" });
+                if (!admin?.subscription?.expiryDate || new Date(admin.subscription.expiryDate) < now) {
+                    const error = createHttpError(402, "Your admin's subscription has expired. Please ask them to renew.");
+                    return next(error);
+                }
+            } else if (!matchedUser.subscription?.expiryDate || new Date(matchedUser.subscription.expiryDate) < now) {
+                const error = createHttpError(402, "Your subscription has expired. Please renew to continue.");
+                return next(error);
+            }
+        }
+
         const accessToken = jwt.sign({_id: matchedUser._id}, config.accessTokenSecret, {
             expiresIn : '1d'
         });

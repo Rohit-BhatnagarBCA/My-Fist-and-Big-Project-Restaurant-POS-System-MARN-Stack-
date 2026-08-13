@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
 import restaurant from "../assets/images/restaurant-img.jpg";
 import logo from "../assets/images/logo.png";
 import Register from "../components/auth/Register";
@@ -113,6 +114,12 @@ const Auth = () => {
             >
               RESTRO&nbsp;POS
             </h1>
+            <Link
+              to="/about"
+              className="text-xs font-semibold text-[#BD5D31] hover:underline"
+            >
+              About this app & pricing plans →
+            </Link>
           </motion.div>
 
           {/* Tab switch */}

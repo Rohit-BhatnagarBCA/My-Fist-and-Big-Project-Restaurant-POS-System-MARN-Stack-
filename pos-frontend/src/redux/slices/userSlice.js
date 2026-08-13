@@ -6,6 +6,7 @@ const initialState = {
     email : "",
     phone: "",
     role: "",
+    subscription: null,
     isAuth: false
 }
 
@@ -14,12 +15,13 @@ const userSlice = createSlice({
     initialState,
     reducers: {
         setUser: (state, action) => {
-            const { _id, name, phone, email, role  } = action.payload;
+            const { _id, name, phone, email, role, subscription } = action.payload;
             state._id = _id;
             state.name = name;
             state.phone = phone;
             state.email = email;
             state.role = role;
+            state.subscription = subscription || null;
             state.isAuth = true;
         },
 
@@ -29,6 +31,7 @@ const userSlice = createSlice({
             state.name = "";
             state.phone = "";
             state.role = "";
+            state.subscription = null;
             state.isAuth = false;
         }
     }

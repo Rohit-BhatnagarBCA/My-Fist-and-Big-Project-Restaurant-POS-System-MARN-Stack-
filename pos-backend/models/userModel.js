@@ -37,6 +37,20 @@ const userSchema = new mongoose.Schema({
     role: {
         type: String,
         required: true
+    },
+
+    // Subscription / billing info. Set only once payment succeeds — a User
+    // document is only ever created after a successful payment now.
+    subscription: {
+        plan: { type: String, default: null },       // "Basic" | "Pro" | "Staff"
+        duration: { type: String, default: null },   // "Monthly" | "4-Month" | "Yearly"
+        amountPaid: { type: Number, default: 0 },
+        startDate: { type: Date, default: null },
+        expiryDate: { type: Date, default: null },
+        // Set only for Waiter/Kitchen accounts registered under the SAME
+        // email as a paying Admin — their access rides on that Admin's
+        // subscription instead of carrying their own expiry.
+        linkedAdminEmail: { type: String, default: null }
     }
 }, { timestamps : true })
 

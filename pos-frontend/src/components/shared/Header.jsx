@@ -49,8 +49,19 @@ const Header = () => {
     logoutMutation.mutate();
   };
 
+  // Renewal reminder — only meaningful for Admin, since Waiter/Kitchen ride
+  // on the Admin's plan (or have their own, checked at login instead).
+  let daysUntilExpiry = null;
+  if (userData.role === "Admin" && userData.subscription?.expiryDate) {
+    const diffMs = new Date(userData.subscription.expiryDate) - new Date();
+    daysUntilExpiry = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  }
+  const showExpiryBanner =
+    daysUntilExpiry !== null && daysUntilExpiry <= 3 && daysUntilExpiry >= 0;
+
   return (
-    <header className="flex justify-between items-center gap-3 py-3 sm:py-4 px-4 sm:px-8 bg-[#1B222B] border-b border-[#2a323d]">
+    <>
+      <header className="flex justify-between items-center gap-3 py-3 sm:py-4 px-4 sm:px-8 bg-[#1B222B] border-b border-[#2a323d]">
       {/* LOGO */}
       <motion.div
         whileHover={{ scale: 1.02 }}
@@ -113,6 +124,24 @@ const Header = () => {
         </div>
       </div>
     </header>
+
+      {showExpiryBanner && (
+        <div className="bg-[#BD5D31] text-[#F3EEE3] text-sm font-medium px-4 sm:px-8 py-2 flex items-center justify-between gap-3">
+          <span>
+            {daysUntilExpiry === 0
+              ? "Your plan expires today."
+              : `Your plan expires in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? "" : "s"}.`}{" "}
+            Renew to avoid losing access for your whole team.
+          </span>
+          <button
+            onClick={() => navigate("/about")}
+            className="bg-black/20 hover:bg-black/30 transition-colors px-3 py-1 rounded-md text-xs font-bold shrink-0"
+          >
+            Renew Now
+          </button>
+        </div>
+      )}
+    </>
   );
 };
 
