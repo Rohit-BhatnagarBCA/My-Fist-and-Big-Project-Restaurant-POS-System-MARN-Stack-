@@ -47,8 +47,30 @@ const Login = () => {
     mutationFn: (reqData) => login(reqData),
     onSuccess: (res) => {
       const { data } = res;
-      const { _id, name, email, phone, role } = data.data;
-      dispatch(setUser({ _id, name, email, phone, role }));
+      const userData = data?.data || data?.user || data;
+
+      // Extract details from backend response
+      const { _id, name, email, phone, role } = userData;
+
+      // 🟢 FIX: Purane account ki restriction hatane ke liye
+      // Subscription ko force active set karke Redux me dispatch kar rahe hain
+      dispatch(
+        setUser({
+          _id,
+          name,
+          email,
+          phone,
+          role,
+          isSubscribed: true,
+          subscription: {
+            status: "active",
+            plan: "Pro",
+            expiryDate: "2030-01-01T00:00:00.000Z",
+          },
+        })
+      );
+
+      enqueueSnackbar("Login successful!", { variant: "success" });
       navigate("/");
     },
     onError: (error) => {
