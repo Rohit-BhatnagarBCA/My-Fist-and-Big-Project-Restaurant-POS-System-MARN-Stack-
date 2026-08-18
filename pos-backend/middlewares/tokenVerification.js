@@ -4,31 +4,89 @@ const config = require("../config/config");
 const User = require("../models/userModel");
 
 
+// ======================================================
+// VERIFY AUTHENTICATED USER
+// ======================================================
+
 const isVerifiedUser = async (req, res, next) => {
-    try{
+    try {
 
         const { accessToken } = req.cookies;
-        
-        if(!accessToken){
-            const error = createHttpError(401, "Please provide token!");
-            return next(error);
+
+        if (!accessToken) {
+            return next(
+                createHttpError(401, "Please provide token!")
+            );
         }
 
-        const decodeToken = jwt.verify(accessToken, config.accessTokenSecret);
+        const decodeToken = jwt.verify(
+            accessToken,
+            config.accessTokenSecret
+        );
 
         const user = await User.findById(decodeToken._id);
-        if(!user){
-            const error = createHttpError(401, "User not exist!");
-            return next(error);
+
+        if (!user) {
+            return next(
+                createHttpError(401, "User not exist!")
+            );
         }
 
+        // Attach real database user to request
         req.user = user;
+
         next();
 
-    }catch (error) {
-        const err = createHttpError(401, "Invalid Token!");
-        next(err);
-    }
-}
+    } catch (error) {
 
-module.exports = { isVerifiedUser };
+        return next(
+            createHttpError(401, "Invalid Token!")
+        );
+
+    }
+};
+
+
+// ======================================================
+// VERIFY ADMIN
+// ======================================================
+//
+// IMPORTANT:
+// We check the role from req.user which came from MongoDB.
+// We do NOT trust role sent by frontend.
+//
+// Usage:
+//
+// router.get(
+//     "/admin/users",
+//     isVerifiedUser,
+//     isAdmin,
+//     getAllUsers
+// );
+//
+
+const isAdmin = (req, res, next) => {
+
+    if (!req.user) {
+        return next(
+            createHttpError(401, "Authentication required!")
+        );
+    }
+
+    if (req.user.role !== "Admin") {
+        return next(
+            createHttpError(
+                403,
+                "Admin access required!"
+            )
+        );
+    }
+
+    next();
+};
+
+
+module.exports = {
+    isVerifiedUser,
+    isAdmin
+};

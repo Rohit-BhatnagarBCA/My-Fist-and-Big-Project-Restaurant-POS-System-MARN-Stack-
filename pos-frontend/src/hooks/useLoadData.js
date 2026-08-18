@@ -8,6 +8,7 @@ const useLoadData = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -16,14 +17,17 @@ const useLoadData = () => {
         const { data } = await getUserData();
         const userData = data.data;
 
-        // 🟢 BYPASS: Hamesha Dummy Active Subscription assign karein
-        const dummySubscription = {
-          status: "active",
-          planName: "Pro Business (Unlimited)",
-          // Aaj se 1 saal aage ki expiry date
-          expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
-        };
+        if (!userData) {
+          throw new Error("User data not found!");
+        }
 
+        /*
+         * IMPORTANT:
+         *
+         * No dummy/fake subscription is created here.
+         *
+         * Whatever subscription exists in MongoDB is used.
+         */
         dispatch(
           setUser({
             _id: userData._id,
@@ -31,25 +35,42 @@ const useLoadData = () => {
             email: userData.email,
             phone: userData.phone,
             role: userData.role,
-            // Original subscription ki jagah active plan bhej dein
-            subscription: userData.subscription || dummySubscription
+            subscription: userData.subscription || null,
           })
         );
+
       } catch (error) {
         dispatch(removeUser());
 
-        const publicRoutes = ["/auth", "/about"];
+        /*
+         * These pages are accessible without authentication.
+         */
+        const publicRoutes = [
+          "/auth",
+          "/about",
+        ];
+
         if (!publicRoutes.includes(location.pathname)) {
-          navigate("/auth");
+          navigate("/auth", { replace: true });
         }
-        console.log("Auth Fetch Error:", error);
+
+        console.log(
+          "Auth Fetch Error:",
+          error
+        );
+
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchUser();
-  }, [dispatch, navigate, location.pathname]);
+
+  }, [
+    dispatch,
+    navigate,
+    location.pathname
+  ]);
 
   return isLoading;
 };

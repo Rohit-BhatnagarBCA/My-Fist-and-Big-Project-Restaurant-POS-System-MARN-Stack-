@@ -4,31 +4,25 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FaMoneyBillWave, FaRegCreditCard, FaPrint } from "react-icons/fa";
 import { BsCheckCircleFill } from "react-icons/bs";
 import { RiLoader4Line } from "react-icons/ri";
+
 import { getTotalPrice } from "../../redux/slices/cartSlice";
+
 import {
   addOrder,
   addItemsToOrder,
-  createOrderRazorpay,
   updateTable,
-  verifyPaymentRazorpay,
 } from "../../https/index";
+
 import { enqueueSnackbar } from "notistack";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+
 import { removeAllItems } from "../../redux/slices/cartSlice";
 import { removeCustomer } from "../../redux/slices/customerSlice";
+
 import Invoice from "../invoice/Invoice";
 import { usePrinter } from "../../context/PrinterContext";
 import InfoAlert from "../shared/InfoAlert";
-
-function loadScript(src) {
-  return new Promise((resolve) => {
-    const script = document.createElement("script");
-    script.src = src;
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-}
 
 const paymentOptions = [
   { id: "Cash", label: "Cash", icon: FaMoneyBillWave },
@@ -38,11 +32,14 @@ const paymentOptions = [
 const Bill = ({ onOrderPlaced }) => {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
+
   const { isConnected, isSupported, printReceipt } = usePrinter();
 
   const customerData = useSelector((state) => state.customer);
   const cartData = useSelector((state) => state.cart);
+
   const total = useSelector(getTotalPrice);
+
   const taxRate = 5.25;
   const tax = (total * taxRate) / 100;
   const totalPriceWithTax = total + tax;
@@ -52,6 +49,8 @@ const Bill = ({ onOrderPlaced }) => {
   const [orderInfo, setOrderInfo] = useState();
   const [printAlert, setPrintAlert] = useState(null);
   const [isPrinting, setIsPrinting] = useState(false);
+
+  const isAppendMode = Boolean(customerData.existingOrderId);
 
   const handlePrintBill = async () => {
     if (cartData.length === 0) {
@@ -74,12 +73,13 @@ const Bill = ({ onOrderPlaced }) => {
       setPrintAlert({
         title: "Printer not connected",
         message:
-          "We couldn't find a connected bill printer. Please plug it in, or pair it from Dashboard \u2192 Add Printer.",
+          "We couldn't find a connected bill printer. Please plug it in, or pair it from Dashboard → Add Printer.",
       });
       return;
     }
 
     setIsPrinting(true);
+
     try {
       await printReceipt({
         orderDate: new Date(),
@@ -89,11 +89,19 @@ const Bill = ({ onOrderPlaced }) => {
           phone: customerData.customerPhone,
         },
         items: cartData,
-        bills: { total, tax, totalWithTax: totalPriceWithTax },
+        bills: {
+          total,
+          tax,
+          totalWithTax: totalPriceWithTax,
+        },
       });
-      enqueueSnackbar("Bill printed!", { variant: "success" });
+
+      enqueueSnackbar("Bill printed!", {
+        variant: "success",
+      });
     } catch (error) {
       console.log(error);
+
       setPrintAlert({
         title: "Couldn't print",
         message:
@@ -104,16 +112,16 @@ const Bill = ({ onOrderPlaced }) => {
     }
   };
 
-  const isAppendMode = Boolean(customerData.existingOrderId);
-
   const handlePlaceOrder = async () => {
     if (cartData.length === 0) {
-      enqueueSnackbar("Add items to the cart first!", { variant: "warning" });
+      enqueueSnackbar("Add items to the cart first!", {
+        variant: "warning",
+      });
       return;
     }
 
-    // Adding items to an already-placed order — no payment step needed,
-    // the order's existing paymentMethod stays as-is.
+    // Adding items to an already-placed order.
+    // Existing order payment method remains unchanged.
     if (isAppendMode) {
       addItemsMutation.mutate({
         orderId: customerData.existingOrderId,
@@ -129,112 +137,52 @@ const Bill = ({ onOrderPlaced }) => {
       return;
     }
 
-    if (paymentMethod === "Online") {
-      try {
-        const res = await loadScript(
-          "https://checkout.razorpay.com/v1/checkout.js"
-        );
+    // Cash and Online now follow exactly the same order flow.
+    // There is no external payment gateway here.
+    const orderData = {
+      customerDetails: {
+        name: customerData.customerName,
+        phone: customerData.customerPhone,
+        guests: customerData.guests,
+      },
 
-        if (!res) {
-          enqueueSnackbar("Razorpay SDK failed to load. Are you online?", {
-            variant: "warning",
-          });
-          return;
-        }
+      orderStatus: "In Progress",
 
-        const reqData = {
-          amount: totalPriceWithTax.toFixed(2),
-        };
+      orderType: customerData.orderType,
 
-        const { data } = await createOrderRazorpay(reqData);
+      bills: {
+        total: total,
+        tax: tax,
+        totalWithTax: totalPriceWithTax,
+      },
 
-        const options = {
-          key: `${import.meta.env.VITE_RAZORPAY_KEY_ID}`,
-          amount: data.order.amount,
-          currency: data.order.currency,
-          name: "RESTRO",
-          description: "Secure Payment for Your Meal",
-          order_id: data.order.id,
-          handler: async function (response) {
-            const verification = await verifyPaymentRazorpay(response);
-            console.log(verification);
-            enqueueSnackbar(verification.data.message, { variant: "success" });
+      items: cartData,
 
-            const orderData = {
-              customerDetails: {
-                name: customerData.customerName,
-                phone: customerData.customerPhone,
-                guests: customerData.guests,
-              },
-              orderStatus: "In Progress",
-              orderType: customerData.orderType,
-              bills: {
-                total: total,
-                tax: tax,
-                totalWithTax: totalPriceWithTax,
-              },
-              items: cartData,
-              ...(customerData.orderType !== "Packing" && {
-                table: customerData.table?.tableId,
-              }),
-              paymentMethod: paymentMethod,
-              paymentData: {
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-              },
-            };
+      ...(customerData.orderType !== "Packing" && {
+        table: customerData.table?.tableId,
+      }),
 
-            setTimeout(() => {
-              orderMutation.mutate(orderData);
-            }, 1500);
-          },
-          prefill: {
-            name: customerData.name,
-            email: "",
-            contact: customerData.phone,
-          },
-          theme: { color: "#025cca" },
-        };
+      paymentMethod: paymentMethod,
+    };
 
-        const rzp = new window.Razorpay(options);
-        rzp.open();
-      } catch (error) {
-        console.log(error);
-        enqueueSnackbar("Payment Failed!", {
-          variant: "error",
-        });
-      }
-    } else {
-      const orderData = {
-        customerDetails: {
-          name: customerData.customerName,
-          phone: customerData.customerPhone,
-          guests: customerData.guests,
-        },
-        orderStatus: "In Progress",
-        orderType: customerData.orderType,
-        bills: {
-          total: total,
-          tax: tax,
-          totalWithTax: totalPriceWithTax,
-        },
-        items: cartData,
-        ...(customerData.orderType !== "Packing" && {
-          table: customerData.table?.tableId,
-        }),
-        paymentMethod: paymentMethod,
-      };
-      orderMutation.mutate(orderData);
-    }
+    orderMutation.mutate(orderData);
   };
 
   const orderMutation = useMutation({
     mutationFn: (reqData) => addOrder(reqData),
+
     onSuccess: (resData) => {
       const { data, stockAdjustments } = resData.data;
+
       setOrderInfo(data);
-      queryClient.invalidateQueries({ queryKey: ["dishes"] });
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
+
+      queryClient.invalidateQueries({
+        queryKey: ["dishes"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["orders"],
+      });
 
       if (data.table) {
         const tableData = {
@@ -247,19 +195,20 @@ const Bill = ({ onOrderPlaced }) => {
           tableUpdateMutation.mutate(tableData);
         }, 1500);
       } else {
-        // Packing orders have no table to book — just clear the cart/customer.
+        // Packing orders have no table to book.
         dispatch(removeCustomer());
         dispatch(removeAllItems());
       }
 
-      // Backend auto-adjusts quantities down to whatever stock was actually
-      // available (e.g. two waiters ordered the same dish at once) — make
-      // sure the waiter sees exactly what changed.
+      // Backend auto-adjusts quantities according to available stock.
       if (stockAdjustments && stockAdjustments.length > 0) {
         stockAdjustments.forEach((adj) => {
           enqueueSnackbar(
             `${adj.name}: only ${adj.given} of ${adj.requested} were available — order adjusted.`,
-            { variant: "warning", autoHideDuration: 6000 }
+            {
+              variant: "warning",
+              autoHideDuration: 6000,
+            }
           );
         });
       }
@@ -267,58 +216,86 @@ const Bill = ({ onOrderPlaced }) => {
       enqueueSnackbar("Order Placed!", {
         variant: "success",
       });
+
       setShowInvoice(true);
+
       onOrderPlaced?.();
     },
+
     onError: (error) => {
       console.log(error);
+
       enqueueSnackbar(
         error?.response?.data?.message ||
           "Something went wrong while placing the order!",
-        { variant: "error" }
+        {
+          variant: "error",
+        }
       );
     },
   });
 
   const addItemsMutation = useMutation({
     mutationFn: (reqData) => addItemsToOrder(reqData),
+
     onSuccess: (resData) => {
       const { data, stockAdjustments } = resData.data;
+
       setOrderInfo(data);
-      queryClient.invalidateQueries({ queryKey: ["dishes"] });
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
+
+      queryClient.invalidateQueries({
+        queryKey: ["dishes"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["orders"],
+      });
 
       if (stockAdjustments && stockAdjustments.length > 0) {
         stockAdjustments.forEach((adj) => {
           enqueueSnackbar(
             `${adj.name}: only ${adj.given} of ${adj.requested} were available — order adjusted.`,
-            { variant: "warning", autoHideDuration: 6000 }
+            {
+              variant: "warning",
+              autoHideDuration: 6000,
+            }
           );
         });
       }
 
-      enqueueSnackbar("Items added to the order!", { variant: "success" });
+      enqueueSnackbar("Items added to the order!", {
+        variant: "success",
+      });
+
       dispatch(removeCustomer());
       dispatch(removeAllItems());
+
       setShowInvoice(true);
+
       onOrderPlaced?.();
     },
+
     onError: (error) => {
       console.log(error);
+
       enqueueSnackbar(
         error?.response?.data?.message ||
           "Something went wrong while adding items to the order!",
-        { variant: "error" }
+        {
+          variant: "error",
+        }
       );
     },
   });
 
   const tableUpdateMutation = useMutation({
     mutationFn: (reqData) => updateTable(reqData),
-    onSuccess: (resData) => {
+
+    onSuccess: () => {
       dispatch(removeCustomer());
       dispatch(removeAllItems());
     },
+
     onError: (error) => {
       console.log(error);
     },
@@ -330,21 +307,24 @@ const Bill = ({ onOrderPlaced }) => {
     addItemsMutation.isPending;
 
   return (
-    <div className="flex flex-col   ">
+    <div className="flex flex-col">
       {/* Price Summary */}
-      <div className="px-5 pt-3 pb-1 ">
+      <div className="px-5 pt-3 pb-1">
         <div className="flex items-center justify-between py-1.5">
           <p className="text-xs text-[#ababab] font-medium">
             Items ({cartData.length})
           </p>
+
           <h1 className="text-sm text-[#f5f5f5] font-semibold">
             ₹{total.toFixed(2)}
           </h1>
         </div>
+
         <div className="flex items-center justify-between py-1.5">
           <p className="text-xs text-[#ababab] font-medium">
             Tax ({taxRate}%)
           </p>
+
           <h1 className="text-sm text-[#f5f5f5] font-semibold">
             ₹{tax.toFixed(2)}
           </h1>
@@ -356,6 +336,7 @@ const Bill = ({ onOrderPlaced }) => {
           <p className="text-sm text-[#f5f5f5] font-semibold">
             Total with Tax
           </p>
+
           <motion.h1
             key={totalPriceWithTax.toFixed(2)}
             initial={{ opacity: 0, y: -4 }}
@@ -372,7 +353,8 @@ const Bill = ({ onOrderPlaced }) => {
       {isAppendMode ? (
         <div className="px-5 mt-2">
           <p className="text-xs text-[#ababab] font-medium bg-[#1f1f1f] border border-[#3a3a3a] rounded-lg px-4 py-3">
-            These items will be added to the existing order for this table — no new payment needed.
+            These items will be added to the existing order for this table —
+            no new payment needed.
           </p>
         </div>
       ) : (
@@ -380,9 +362,11 @@ const Bill = ({ onOrderPlaced }) => {
           <p className="text-xs text-[#ababab] font-medium mb-2 tracking-wide">
             PAYMENT METHOD
           </p>
+
           <div className="grid grid-cols-2 gap-3">
             {paymentOptions.map(({ id, label, icon: Icon }) => {
               const isActive = paymentMethod === id;
+
               return (
                 <motion.button
                   key={id}
@@ -395,21 +379,27 @@ const Bill = ({ onOrderPlaced }) => {
                   }`}
                 >
                   <Icon
-                    className={isActive ? "text-yellow-400" : "text-[#ababab]"}
+                    className={
+                      isActive
+                        ? "text-yellow-400"
+                        : "text-[#ababab]"
+                    }
                   />
+
                   {label}
+
                   {isActive && (
                     <motion.span
-                    layoutId="payment-check"
-                    className="absolute -top-1.5 -right-1.5 text-yellow-400 bg-[#1f1f1f] rounded-full"
-                  >
-                    <BsCheckCircleFill size={16} />
-                  </motion.span>
-                )}
-              </motion.button>
-            );
-          })}
-        </div>
+                      layoutId="payment-check"
+                      className="absolute -top-1.5 -right-1.5 text-yellow-400 bg-[#1f1f1f] rounded-full"
+                    >
+                      <BsCheckCircleFill size={16} />
+                    </motion.span>
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -431,6 +421,7 @@ const Bill = ({ onOrderPlaced }) => {
           ) : (
             <FaPrint />
           )}
+
           {isPrinting ? "Printing..." : "Print"}
         </motion.button>
 
@@ -455,6 +446,7 @@ const Bill = ({ onOrderPlaced }) => {
                 className="flex items-center gap-2"
               >
                 <RiLoader4Line className="animate-spin" />
+
                 {isAppendMode ? "Adding..." : "Placing..."}
               </motion.span>
             ) : (
@@ -473,7 +465,10 @@ const Bill = ({ onOrderPlaced }) => {
 
       <AnimatePresence>
         {showInvoice && (
-          <Invoice orderInfo={orderInfo} setShowInvoice={setShowInvoice} />
+          <Invoice
+            orderInfo={orderInfo}
+            setShowInvoice={setShowInvoice}
+          />
         )}
       </AnimatePresence>
 
