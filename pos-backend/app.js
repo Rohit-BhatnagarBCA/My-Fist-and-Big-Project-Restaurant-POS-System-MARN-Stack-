@@ -29,29 +29,34 @@ app.get("/", (req, res) => {
   });
 });
 
-// Other Endpoints
+// ============================================================
+// API ROUTES
+// ============================================================
+
 app.use("/api/user", require("./routes/userRoute"));
 app.use("/api/order", require("./routes/orderRoute"));
 app.use("/api/table", require("./routes/tableRoute"));
 app.use("/api/category", require("./routes/categoryRoute"));
 app.use("/api/dish", require("./routes/dishRoute"));
 
-// Registration Payment
-app.use(
-  "/api/registration-payment",
-  require("./routes/registrationPaymentRoute")
-);
-
-// Subscription Request
+// Manual Subscription Request System
 app.use(
   "/api/subscription-request",
   require("./routes/subscriptionRequestRoute")
 );
 
-// Global Error Handler
+// ============================================================
+// GLOBAL ERROR HANDLER
+// ============================================================
+
 app.use(globalErrorHandler);
 
-// Server
+// ============================================================
+// SERVER
+// ============================================================
+
 app.listen(PORT, () => {
-  console.log(`☑️ POS Server is listening on port ${PORT}`);
+  console.log(
+    `☑️ POS Server is listening on port ${PORT}`
+  );
 });

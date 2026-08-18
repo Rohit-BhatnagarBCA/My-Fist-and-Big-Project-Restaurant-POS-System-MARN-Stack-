@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import {
   FiArrowLeft,
   FiCheck,
@@ -11,9 +12,13 @@ import {
   FiAlertTriangle,
   FiUsers,
   FiPieChart,
-  FiGrid
+  FiGrid,
 } from "react-icons/fi";
-import { MdOutlineTakeoutDining, MdTableBar, MdOutlineReceiptLong } from "react-icons/md";
+import {
+  MdOutlineTakeoutDining,
+  MdTableBar,
+  MdOutlineReceiptLong,
+} from "react-icons/md";
 import { BiSolidDish } from "react-icons/bi";
 import logo from "../assets/images/logo.png";
 import {
@@ -67,15 +72,36 @@ const repoFeatures = [
   },
 ];
 
-const techStack = ["MongoDB", "Express.js", "React.js", "Node.js", "Redux Toolkit", "Framer Motion", "Tailwind CSS"];
+const techStack = [
+  "MongoDB",
+  "Express.js",
+  "React.js",
+  "Node.js",
+  "Redux Toolkit",
+  "Framer Motion",
+  "Tailwind CSS",
+];
 
 const About = () => {
   const navigate = useNavigate();
+
+  const { isAuth } = useSelector((state) => state.user);
+
   const [duration, setDuration] = useState("Monthly");
 
+  const handleGetStarted = () => {
+    if (isAuth) {
+      navigate("/subscription");
+      return;
+    }
+
+    navigate("/auth");
+  };
+
   return (
-    <div className={`min-h-screen bg-[#0E131A] text-[#F3EEE3] selection:bg-[#BD5D31] selection:text-white ${bodyFont} relative overflow-hidden`}>
-      
+    <div
+      className={`min-h-screen bg-[#0E131A] text-[#F3EEE3] selection:bg-[#BD5D31] selection:text-white ${bodyFont} relative overflow-hidden`}
+    >
       {/* Background Glow Effects */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-[#BD5D31]/15 blur-[140px] pointer-events-none rounded-full" />
       <div className="absolute top-[40%] right-0 w-[400px] h-[400px] bg-[#BD5D31]/5 blur-[150px] pointer-events-none rounded-full" />
@@ -86,11 +112,20 @@ const About = () => {
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-[#8C95A5] hover:text-[#F3EEE3] transition-colors text-sm font-semibold group"
         >
-          <FiArrowLeft className="group-hover:-translate-x-1 transition-transform text-lg" /> Back
+          <FiArrowLeft className="group-hover:-translate-x-1 transition-transform text-lg" />
+          Back
         </button>
+
         <div className="flex items-center gap-3">
-          <img src={logo} alt="Restro POS Logo" className="h-9 w-9 rounded-full ring-2 ring-[#BD5D31]/50 shadow-md shadow-[#BD5D31]/20" />
-          <span className={`${labelFont} text-xs tracking-[0.3em] font-bold text-[#F3EEE3]`}>
+          <img
+            src={logo}
+            alt="Restro POS Logo"
+            className="h-9 w-9 rounded-full ring-2 ring-[#BD5D31]/50 shadow-md shadow-[#BD5D31]/20"
+          />
+
+          <span
+            className={`${labelFont} text-xs tracking-[0.3em] font-bold text-[#F3EEE3]`}
+          >
             RESTRO&nbsp;POS
           </span>
         </div>
@@ -104,7 +139,10 @@ const About = () => {
           className="inline-flex items-center gap-2 bg-[#BD5D31]/15 border border-[#BD5D31]/30 rounded-full px-4 py-1.5 mb-6"
         >
           <FiZap className="text-[#BD5D31] text-xs animate-pulse" />
-          <span className={`${labelFont} text-[10px] tracking-[0.25em] text-[#BD5D31] font-bold`}>
+
+          <span
+            className={`${labelFont} text-[10px] tracking-[0.25em] text-[#BD5D31] font-bold`}
+          >
             RESTAURANT MANAGEMENT OS
           </span>
         </motion.div>
@@ -125,7 +163,9 @@ const About = () => {
           transition={{ delay: 0.2 }}
           className="text-[#929CAE] mt-6 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed"
         >
-          From menu customization by Admins to live menu restrictions from Kitchen staff, Restro POS keeps your entire front and back of house synced in real time.
+          From menu customization by Admins to live menu restrictions from
+          Kitchen staff, Restro POS keeps your entire front and back of house
+          synced in real time.
         </motion.p>
 
         {/* Tech Stack Pills */}
@@ -149,51 +189,64 @@ const About = () => {
       {/* Feature Showcase Grid */}
       <section className="relative z-10 max-w-6xl mx-auto px-6 mb-24">
         <div className="text-center mb-12">
-          <p className={`${labelFont} text-[11px] tracking-[0.25em] text-[#BD5D31] font-bold mb-2`}>
+          <p
+            className={`${labelFont} text-[11px] tracking-[0.25em] text-[#BD5D31] font-bold mb-2`}
+          >
             POWERFUL FEATURES
           </p>
+
           <h2 className="text-3xl sm:text-4xl font-extrabold text-[#F3EEE3]">
             Engineered for Fast-Paced Restaurants
           </h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {repoFeatures.map(({ icon: Icon, badge, title, text }, i) => (
-            <motion.div
-              key={title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.05 * i }}
-              className="bg-[#141B24] hover:bg-[#18222E] border border-[#212C3B] hover:border-[#BD5D31]/50 rounded-2xl p-6 transition-all duration-300 shadow-xl group flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-5">
-                  <div className="bg-[#BD5D31]/15 text-[#BD5D31] p-3 rounded-xl group-hover:scale-110 transition-transform">
-                    <Icon size={22} />
+          {repoFeatures.map(
+            ({ icon: Icon, badge, title, text }, i) => (
+              <motion.div
+                key={title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.05 * i }}
+                className="bg-[#141B24] hover:bg-[#18222E] border border-[#212C3B] hover:border-[#BD5D31]/50 rounded-2xl p-6 transition-all duration-300 shadow-xl group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="bg-[#BD5D31]/15 text-[#BD5D31] p-3 rounded-xl group-hover:scale-110 transition-transform">
+                      <Icon size={22} />
+                    </div>
+
+                    <span
+                      className={`${labelFont} text-[9px] tracking-wider font-bold text-[#BD5D31] bg-[#BD5D31]/10 px-2.5 py-1 rounded-md border border-[#BD5D31]/20`}
+                    >
+                      {badge}
+                    </span>
                   </div>
-                  <span className={`${labelFont} text-[9px] tracking-wider font-bold text-[#BD5D31] bg-[#BD5D31]/10 px-2.5 py-1 rounded-md border border-[#BD5D31]/20`}>
-                    {badge}
-                  </span>
+
+                  <h3 className="text-[#F3EEE3] text-lg font-bold mb-2 group-hover:text-white transition-colors">
+                    {title}
+                  </h3>
+
+                  <p className="text-[#838D9E] text-xs leading-relaxed">
+                    {text}
+                  </p>
                 </div>
-                <h3 className="text-[#F3EEE3] text-lg font-bold mb-2 group-hover:text-white transition-colors">
-                  {title}
-                </h3>
-                <p className="text-[#838D9E] text-xs leading-relaxed">
-                  {text}
-                </p>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            )
+          )}
         </div>
       </section>
 
       {/* Pricing Section */}
       <section className="relative z-10 max-w-5xl mx-auto px-6 pb-20">
         <div className="text-center mb-10">
-          <p className={`${labelFont} text-[11px] tracking-[0.25em] text-[#BD5D31] font-bold mb-2`}>
+          <p
+            className={`${labelFont} text-[11px] tracking-[0.25em] text-[#BD5D31] font-bold mb-2`}
+          >
             BUSINESS PLANS
           </p>
+
           <h2 className="text-3xl sm:text-4xl font-extrabold text-[#F3EEE3]">
             Flexible plans for every restaurant
           </h2>
@@ -204,21 +257,29 @@ const About = () => {
           <div className="relative flex bg-[#141B24] border border-[#212C3B] rounded-full p-1.5 shadow-inner">
             {DURATIONS.map((d) => {
               const active = duration === d.id;
+
               return (
                 <button
                   key={d.id}
                   onClick={() => setDuration(d.id)}
                   className={`relative px-6 py-2 text-xs sm:text-sm font-bold rounded-full transition-colors z-10 ${
-                    active ? "text-[#0E131A]" : "text-[#838D9E] hover:text-[#F3EEE3]"
+                    active
+                      ? "text-[#0E131A]"
+                      : "text-[#838D9E] hover:text-[#F3EEE3]"
                   }`}
                 >
                   {active && (
                     <motion.span
                       layoutId="about-duration-active"
                       className="absolute inset-0 bg-[#F3EEE3] rounded-full -z-10 shadow-md"
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 30,
+                      }}
                     />
                   )}
+
                   {d.label}
                 </button>
               );
@@ -231,6 +292,7 @@ const About = () => {
           {BUSINESS_PLANS.map((plan) => {
             const price = plan.prices[duration];
             const savings = savingsLabel(plan, duration);
+
             return (
               <div
                 key={plan.id}
@@ -241,24 +303,56 @@ const About = () => {
                 }`}
               >
                 {plan.highlighted && (
-                  <span className={`${labelFont} absolute -top-3 left-6 bg-[#F3EEE3] text-[#BD5D31] text-[10px] font-bold px-3 py-0.5 rounded-full shadow`}>
+                  <span
+                    className={`${labelFont} absolute -top-3 left-6 bg-[#F3EEE3] text-[#BD5D31] text-[10px] font-bold px-3 py-0.5 rounded-full shadow`}
+                  >
                     POPULAR CHOICE
                   </span>
                 )}
-                <h3 className="text-2xl font-bold mt-1">{plan.name}</h3>
-                <p className={`text-xs mt-1 mb-5 ${plan.highlighted ? "text-[#F3EEE3]/90" : "text-[#838D9E]"}`}>
+
+                <h3 className="text-2xl font-bold mt-1">
+                  {plan.name}
+                </h3>
+
+                <p
+                  className={`text-xs mt-1 mb-5 ${
+                    plan.highlighted
+                      ? "text-[#F3EEE3]/90"
+                      : "text-[#838D9E]"
+                  }`}
+                >
                   {plan.tagline}
                 </p>
 
                 <div className="flex items-baseline gap-1.5 mb-2">
-                  <span className="text-4xl font-extrabold tracking-tight">₹{price.toLocaleString("en-IN")}</span>
-                  <span className={`text-xs ${plan.highlighted ? "text-[#F3EEE3]/80" : "text-[#838D9E]"}`}>
-                    /{duration === "Yearly" ? "year" : duration === "4-Month" ? "4 months" : "month"}
+                  <span className="text-4xl font-extrabold tracking-tight">
+                    ₹{price.toLocaleString("en-IN")}
+                  </span>
+
+                  <span
+                    className={`text-xs ${
+                      plan.highlighted
+                        ? "text-[#F3EEE3]/80"
+                        : "text-[#838D9E]"
+                    }`}
+                  >
+                    /
+                    {duration === "Yearly"
+                      ? "year"
+                      : duration === "4-Month"
+                      ? "4 months"
+                      : "month"}
                   </span>
                 </div>
 
                 {savings ? (
-                  <p className={`text-xs font-bold mb-5 ${plan.highlighted ? "text-[#F3EEE3]" : "text-[#8FB89C]"}`}>
+                  <p
+                    className={`text-xs font-bold mb-5 ${
+                      plan.highlighted
+                        ? "text-[#F3EEE3]"
+                        : "text-[#8FB89C]"
+                    }`}
+                  >
                     {savings}
                   </p>
                 ) : (
@@ -267,15 +361,33 @@ const About = () => {
 
                 <ul className="space-y-3 mb-8 flex-1 border-t border-white/10 pt-5">
                   {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2.5 text-xs sm:text-sm">
-                      <FiCheck className={`mt-0.5 shrink-0 text-base ${plan.highlighted ? "text-[#F3EEE3]" : "text-[#BD5D31]"}`} />
-                      <span className={plan.highlighted ? "text-[#F3EEE3]" : "text-[#A0AAB8]"}>{f}</span>
+                    <li
+                      key={f}
+                      className="flex items-start gap-2.5 text-xs sm:text-sm"
+                    >
+                      <FiCheck
+                        className={`mt-0.5 shrink-0 text-base ${
+                          plan.highlighted
+                            ? "text-[#F3EEE3]"
+                            : "text-[#BD5D31]"
+                        }`}
+                      />
+
+                      <span
+                        className={
+                          plan.highlighted
+                            ? "text-[#F3EEE3]"
+                            : "text-[#A0AAB8]"
+                        }
+                      >
+                        {f}
+                      </span>
                     </li>
                   ))}
                 </ul>
 
                 <button
-                  onClick={() => navigate("/auth")}
+                  onClick={handleGetStarted}
                   className={`w-full rounded-xl py-3.5 text-sm font-extrabold tracking-wide transition-transform active:scale-95 shadow-lg ${
                     plan.highlighted
                       ? "bg-[#F3EEE3] text-[#BD5D31] hover:bg-white"
@@ -291,10 +403,17 @@ const About = () => {
 
         {/* Staff Seat Pricing Info */}
         <div className="max-w-3xl mx-auto mt-8 bg-[#141B24] border border-[#212C3B] rounded-2xl p-6 text-center shadow-md">
-          <p className="text-[#F3EEE3] font-bold text-sm mb-1">Add Waiters & Kitchen Accounts</p>
+          <p className="text-[#F3EEE3] font-bold text-sm mb-1">
+            Add Waiters & Kitchen Accounts
+          </p>
+
           <p className="text-[#838D9E] text-xs leading-relaxed">
-            Staff seats cost ₹{STAFF_BASE_PRICE}/mo each. Get 50% discount at{" "}
-            <span className="text-[#8FB89C] font-bold">₹{STAFF_LINKED_DISCOUNT_PRICE}/mo</span> when registered using your main Admin email link.
+            Staff seats cost ₹{STAFF_BASE_PRICE}/mo each. Get 50% discount
+            at{" "}
+            <span className="text-[#8FB89C] font-bold">
+              ₹{STAFF_LINKED_DISCOUNT_PRICE}/mo
+            </span>{" "}
+            when registered using your main Admin email link.
           </p>
         </div>
       </section>

@@ -1,104 +1,91 @@
 import { axiosWrapper } from "./axiosWrapper";
 
 // ============================================================
-// AUTH ENDPOINTS
+// AUTH
 // ============================================================
 
 export const login = (data) =>
-  axiosWrapper.post("/api/user/login", data);
+  axiosWrapper.post(
+    "/api/user/login",
+    data
+  );
 
 export const register = (data) =>
-  axiosWrapper.post("/api/user/register", data);
+  axiosWrapper.post(
+    "/api/user/register",
+    data
+  );
 
 export const getUserData = () =>
   axiosWrapper.get("/api/user");
 
 export const logout = () =>
-  axiosWrapper.post("/api/user/logout");
-
-
-// ============================================================
-// REGISTRATION PAYMENT ENDPOINTS
-// ============================================================
-
-export const quoteRegistrationPrice = (data) =>
   axiosWrapper.post(
-    "/api/registration-payment/quote",
-    data
+    "/api/user/logout"
   );
 
-export const createRegistrationOrder = (data) =>
-  axiosWrapper.post(
-    "/api/registration-payment/create-order",
-    data
-  );
-
-export const verifyAndRegister = (data) =>
-  axiosWrapper.post(
-    "/api/registration-payment/verify-and-register",
-    data
-  );
-
-
 // ============================================================
-// SUBSCRIPTION PAYMENT ENDPOINTS
+// SUBSCRIPTION
 // ============================================================
 
-// Admin creates Razorpay subscription order
-export const createSubscriptionOrder = (data) =>
-  axiosWrapper.post(
-    "/api/subscription/create-order",
-    data
-  );
+export const createSubscriptionRequest =
+  (data) =>
+    axiosWrapper.post(
+      "/api/subscription-request",
+      data
+    );
 
-// Verify Razorpay payment and activate subscription
-export const verifySubscriptionPayment = (data) =>
-  axiosWrapper.post(
-    "/api/subscription/verify-payment",
-    data
-  );
-
+export const getMySubscriptionRequests =
+  () =>
+    axiosWrapper.get(
+      "/api/subscription-request/my"
+    );
 
 // ============================================================
-// SUBSCRIPTION REQUEST ENDPOINTS
+// SUPER ADMIN
 // ============================================================
 
-// User submits payment reference after manually paying.
-export const createSubscriptionRequest = (data) =>
-  axiosWrapper.post(
-    "/api/subscription-request",
-    data
-  );
+export const getAllSubscriptionRequests =
+  () =>
+    axiosWrapper.get(
+      "/api/subscription-request/all"
+    );
 
-// User can see his previous requests.
-export const getMySubscriptionRequests = () =>
+export const reviewSubscriptionRequest =
+  ({
+    requestId,
+    status,
+    rejectionReason = "",
+  }) =>
+    axiosWrapper.patch(
+      `/api/subscription-request/${requestId}/review`,
+      {
+        status,
+        rejectionReason,
+      }
+    );
+
+export const getAllUsers = () =>
   axiosWrapper.get(
-    "/api/subscription-request/my"
+    "/api/user/admin/users"
   );
 
-// Admin: get all subscription requests.
-export const getAllSubscriptionRequests = () =>
-  axiosWrapper.get(
-    "/api/subscription-request/all"
-  );
-
-// Admin: approve / reject a request.
-export const reviewSubscriptionRequest = ({
-  requestId,
-  status,
-  rejectionReason = "",
-}) =>
-  axiosWrapper.patch(
-    `/api/subscription-request/${requestId}/review`,
-    {
-      status,
-      rejectionReason,
-    }
-  );
-
+export const updateUserSubscription =
+  ({
+    userId,
+    isActive,
+    expiryDate = null,
+  }) =>
+    axiosWrapper.patch(
+      `/api/user/admin/users/${userId}/subscription`,
+      {
+        isActive,
+        expiryDate,
+      }
+    );
 
 // ============================================================
-// TABLE ENDPOINTS
+// TABLE
 // ============================================================
 
 export const addTable = (data) =>
@@ -114,21 +101,22 @@ export const getTables = () =>
 
 export const updateTable = ({
   tableId,
-  ...tableData
+  ...data
 }) =>
   axiosWrapper.put(
     `/api/table/${tableId}`,
-    tableData
+    data
   );
 
-export const deleteTable = (tableId) =>
+export const deleteTable = (
+  tableId
+) =>
   axiosWrapper.delete(
     `/api/table/${tableId}`
   );
 
-
 // ============================================================
-// CATEGORY ENDPOINTS
+// CATEGORY
 // ============================================================
 
 export const addCategory = (data) =>
@@ -151,14 +139,15 @@ export const updateCategory = ({
     data
   );
 
-export const deleteCategory = (categoryId) =>
+export const deleteCategory = (
+  categoryId
+) =>
   axiosWrapper.delete(
     `/api/category/${categoryId}`
   );
 
-
 // ============================================================
-// DISH ENDPOINTS
+// DISH
 // ============================================================
 
 export const addDish = (data) =>
@@ -181,14 +170,15 @@ export const updateDish = ({
     data
   );
 
-export const deleteDish = (dishId) =>
+export const deleteDish = (
+  dishId
+) =>
   axiosWrapper.delete(
     `/api/dish/${dishId}`
   );
 
-
 // ============================================================
-// ORDER ENDPOINTS
+// ORDERS
 // ============================================================
 
 export const addOrder = (data) =>
@@ -220,7 +210,8 @@ export const updateOrderStatus = ({
     { orderStatus }
   );
 
-export const deleteCompletedOrders = () =>
-  axiosWrapper.delete(
-    "/api/order/completed"
-  );
+export const deleteCompletedOrders =
+  () =>
+    axiosWrapper.delete(
+      "/api/order/completed"
+    );

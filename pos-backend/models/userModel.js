@@ -1,66 +1,123 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 
-const userSchema = new mongoose.Schema({
-    name : {
+const userSchema =
+  new mongoose.Schema(
+    {
+      name: {
         type: String,
         required: true,
-    },
+        trim: true,
+      },
 
-    email : {
+      email: {
         type: String,
+        required: true,
+        trim: true,
+        lowercase: true,
+        validate: {
+          validator: function (v) {
+            return /\S+@\S+\.\S+/.test(v);
+          },
+          message:
+            "Email must be in valid format!",
+        },
+      },
+
+      phone: {
+        type: Number,
         required: true,
         validate: {
-            validator: function (v) {
-                return /\S+@\S+\.\S+/.test(v);
-            },
-            message : "Email must be in valid format!"
-        }
-    },
+          validator: function (v) {
+            return /^\d{10}$/.test(
+              String(v)
+            );
+          },
+          message:
+            "Phone number must be a 10-digit number!",
+        },
+      },
 
-    phone: {
-        type : Number,
-        required: true,
-        validate: {
-            validator: function (v) {
-                return /\d{10}/.test(v);
-            },
-            message : "Phone number must be a 10-digit number!"
-        }
-    },
-
-    password: {
+      password: {
         type: String,
         required: true,
-    },
+      },
 
-    role: {
+      role: {
         type: String,
-        required: true
+        required: true,
+        enum: [
+          "Waiter",
+          "Kitchen",
+          "Admin",
+          "SuperAdmin",
+        ],
+      },
+
+      subscription: {
+        plan: {
+          type: String,
+          default: null,
+        },
+
+        duration: {
+          type: String,
+          default: null,
+        },
+
+        amountPaid: {
+          type: Number,
+          default: 0,
+        },
+
+        startDate: {
+          type: Date,
+          default: null,
+        },
+
+        expiryDate: {
+          type: Date,
+          default: null,
+        },
+
+        linkedAdminEmail: {
+          type: String,
+          default: null,
+        },
+      },
     },
-
-    // Subscription / billing info. Set only once payment succeeds — a User
-    // document is only ever created after a successful payment now.
-    subscription: {
-        plan: { type: String, default: null },       // "Basic" | "Pro" | "Staff"
-        duration: { type: String, default: null },   // "Monthly" | "4-Month" | "Yearly"
-        amountPaid: { type: Number, default: 0 },
-        startDate: { type: Date, default: null },
-        expiryDate: { type: Date, default: null },
-        // Set only for Waiter/Kitchen accounts registered under the SAME
-        // email as a paying Admin — their access rides on that Admin's
-        // subscription instead of carrying their own expiry.
-        linkedAdminEmail: { type: String, default: null }
+    {
+      timestamps: true,
     }
-}, { timestamps : true })
+  );
 
-userSchema.pre('save', async function (next) {
-    if(!this.isModified('password')){
-        next();
+userSchema.pre(
+  "save",
+  async function (next) {
+    if (
+      !this.isModified("password")
+    ) {
+      return next();
     }
 
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-})
+    try {
+      const salt =
+        await bcrypt.genSalt(10);
 
-module.exports = mongoose.model("User", userSchema);
+      this.password =
+        await bcrypt.hash(
+          this.password,
+          salt
+        );
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+module.exports = mongoose.model(
+  "User",
+  userSchema
+);

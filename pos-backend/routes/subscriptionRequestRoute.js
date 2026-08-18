@@ -1,5 +1,4 @@
 const express = require("express");
-const router = express.Router();
 
 const {
   createSubscriptionRequest,
@@ -8,10 +7,22 @@ const {
   reviewSubscriptionRequest,
 } = require("../controllers/subscriptionRequestController");
 
-const { isVerifiedUser } = require("../middlewares/tokenVerification");
+const {
+  isVerifiedUser,
+  isSuperAdmin,
+} = require("../middlewares/tokenVerification");
 
-// User
-router.post("/", isVerifiedUser, createSubscriptionRequest);
+const router = express.Router();
+
+// ============================================================
+// USER
+// ============================================================
+
+router.post(
+  "/",
+  isVerifiedUser,
+  createSubscriptionRequest
+);
 
 router.get(
   "/my",
@@ -19,16 +30,21 @@ router.get(
   getMySubscriptionRequests
 );
 
-// Admin
+// ============================================================
+// SUPER ADMIN
+// ============================================================
+
 router.get(
   "/all",
   isVerifiedUser,
+  isSuperAdmin,
   getAllSubscriptionRequests
 );
 
 router.patch(
   "/:id/review",
   isVerifiedUser,
+  isSuperAdmin,
   reviewSubscriptionRequest
 );
 

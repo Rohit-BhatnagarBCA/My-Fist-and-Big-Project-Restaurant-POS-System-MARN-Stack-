@@ -13,11 +13,20 @@ import {
 } from "react-icons/io5";
 import { register } from "../../https";
 
-const labelFont = "font-['Space_Mono',_monospace]";
+const labelFont =
+  "font-['Space_Mono',_monospace]";
 
-const roles = ["Waiter", "Kitchen", "Admin"];
+const roles = [
+  "Waiter",
+  "Kitchen",
+  "Admin",
+];
 
-const TicketField = ({ label, icon: Icon, children }) => (
+const TicketField = ({
+  label,
+  icon: Icon,
+  children,
+}) => (
   <div>
     <label
       className={`${labelFont} block text-[#8a806c] mb-2 mt-4 text-[10px] tracking-widest`}
@@ -36,47 +45,84 @@ const TicketField = ({ label, icon: Icon, children }) => (
   </div>
 );
 
-const Register = ({ setIsRegister }) => {
-  const [showPassword, setShowPassword] = useState(false);
+const Register = ({
+  setIsRegister,
+}) => {
+  const [showPassword, setShowPassword] =
+    useState(false);
 
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    password: "",
-    role: "",
-  });
+  const [formData, setFormData] =
+    useState({
+      name: "",
+      email: "",
+      phone: "",
+      password: "",
+      role: "",
+    });
 
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [isRegistering, setIsRegistering] =
+    useState(false);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    if (name === "phone") {
+      const numericValue =
+        value.replace(/\D/g, "").slice(0, 10);
+
+      setFormData((previous) => ({
+        ...previous,
+        phone: numericValue,
+      }));
+
+      return;
+    }
+
+    setFormData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
   };
 
-  const handleRoleSelection = (selectedRole) => {
-    setFormData({
-      ...formData,
+  const handleRoleSelection = (
+    selectedRole
+  ) => {
+    setFormData((previous) => ({
+      ...previous,
       role: selectedRole,
-    });
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.role) {
-      enqueueSnackbar("Please select a role!", {
-        variant: "warning",
-      });
+      enqueueSnackbar(
+        "Please select a role!",
+        {
+          variant: "warning",
+        }
+      );
+      return;
+    }
+
+    if (
+      formData.phone.length !== 10
+    ) {
+      enqueueSnackbar(
+        "Phone number must be exactly 10 digits.",
+        {
+          variant: "warning",
+        }
+      );
       return;
     }
 
     setIsRegistering(true);
 
     try {
-      const response = await register(formData);
+      const response =
+        await register(formData);
 
       enqueueSnackbar(
         response?.data?.message ||
@@ -86,7 +132,6 @@ const Register = ({ setIsRegister }) => {
         }
       );
 
-      // Clear form after successful registration.
       setFormData({
         name: "",
         email: "",
@@ -95,8 +140,6 @@ const Register = ({ setIsRegister }) => {
         role: "",
       });
 
-      // Give the user a moment to see the success message,
-      // then return to login.
       setTimeout(() => {
         setIsRegister(false);
       }, 1000);
@@ -115,6 +158,8 @@ const Register = ({ setIsRegister }) => {
 
   return (
     <form onSubmit={handleSubmit}>
+      {/* NAME */}
+
       <TicketField
         label="EMPLOYEE NAME"
         icon={FiUser}
@@ -129,6 +174,8 @@ const Register = ({ setIsRegister }) => {
           required
         />
       </TicketField>
+
+      {/* EMAIL */}
 
       <TicketField
         label="EMPLOYEE EMAIL"
@@ -145,6 +192,8 @@ const Register = ({ setIsRegister }) => {
         />
       </TicketField>
 
+      {/* PHONE */}
+
       <TicketField
         label="EMPLOYEE PHONE"
         icon={FiPhone}
@@ -155,11 +204,15 @@ const Register = ({ setIsRegister }) => {
           value={formData.phone}
           onChange={handleChange}
           placeholder="10-digit number"
+          inputMode="numeric"
           maxLength={10}
+          pattern="[0-9]{10}"
           className="bg-transparent flex-1 text-[#2A241D] placeholder:text-[#a89e8b] focus:outline-none text-sm"
           required
         />
       </TicketField>
+
+      {/* PASSWORD */}
 
       <TicketField
         label="PASSWORD"
@@ -182,7 +235,10 @@ const Register = ({ setIsRegister }) => {
         <button
           type="button"
           onClick={() =>
-            setShowPassword((p) => !p)
+            setShowPassword(
+              (previous) =>
+                !previous
+            )
           }
           className="text-[#8a806c] hover:text-[#BD5D31] transition-colors"
         >
@@ -193,6 +249,8 @@ const Register = ({ setIsRegister }) => {
           )}
         </button>
       </TicketField>
+
+      {/* ROLE */}
 
       <div>
         <label
@@ -211,7 +269,9 @@ const Register = ({ setIsRegister }) => {
                 key={role}
                 type="button"
                 onClick={() =>
-                  handleRoleSelection(role)
+                  handleRoleSelection(
+                    role
+                  )
                 }
                 className={`relative flex-1 py-2.5 rounded-md text-sm font-semibold transition-colors z-10 ${
                   active
@@ -237,6 +297,8 @@ const Register = ({ setIsRegister }) => {
         </div>
       </div>
 
+      {/* REGISTER BUTTON */}
+
       <motion.button
         whileHover={
           !isRegistering
@@ -252,9 +314,7 @@ const Register = ({ setIsRegister }) => {
             : {}
         }
         type="submit"
-        disabled={
-          isRegistering
-        }
+        disabled={isRegistering}
         className={`w-full rounded-md mt-8 py-3.5 text-sm font-bold tracking-widest ${labelFont} transition-colors ${
           isRegistering
             ? "bg-[#d8cfbd] text-[#8a806c] cursor-not-allowed"
