@@ -1,26 +1,30 @@
-import React, { useState } from "react";
+import React, {
+  useState,
+} from "react";
+
 import { motion } from "framer-motion";
-import { enqueueSnackbar } from "notistack";
+
+import {
+  enqueueSnackbar,
+} from "notistack";
+
 import {
   FiUser,
   FiMail,
   FiPhone,
   FiLock,
+  FiHome,
 } from "react-icons/fi";
+
 import {
   IoEyeOutline,
   IoEyeOffOutline,
 } from "react-icons/io5";
+
 import { register } from "../../https";
 
 const labelFont =
   "font-['Space_Mono',_monospace]";
-
-const roles = [
-  "Waiter",
-  "Kitchen",
-  "Admin",
-];
 
 const TicketField = ({
   label,
@@ -48,161 +52,238 @@ const TicketField = ({
 const Register = ({
   setIsRegister,
 }) => {
-  const [showPassword, setShowPassword] =
-    useState(false);
+  const [
+    showPassword,
+    setShowPassword,
+  ] = useState(false);
 
-  const [formData, setFormData] =
-    useState({
-      name: "",
-      email: "",
-      phone: "",
-      password: "",
-      role: "",
-    });
+  const [
+    formData,
+    setFormData,
+  ] = useState({
+    name: "",
+    restaurantName: "",
+    email: "",
+    phone: "",
+    password: "",
+  });
 
-  const [isRegistering, setIsRegistering] =
-    useState(false);
+  const [
+    isRegistering,
+    setIsRegistering,
+  ] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    if (name === "phone") {
-      const numericValue =
-        value.replace(/\D/g, "").slice(0, 10);
-
-      setFormData((previous) => ({
-        ...previous,
-        phone: numericValue,
-      }));
-
-      return;
-    }
-
-    setFormData((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  };
-
-  const handleRoleSelection = (
-    selectedRole
+  const handleChange = (
+    event
   ) => {
-    setFormData((previous) => ({
-      ...previous,
-      role: selectedRole,
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!formData.role) {
-      enqueueSnackbar(
-        "Please select a role!",
-        {
-          variant: "warning",
-        }
-      );
-      return;
-    }
+    const {
+      name,
+      value,
+    } = event.target;
 
     if (
-      formData.phone.length !== 10
+      name === "phone"
     ) {
-      enqueueSnackbar(
-        "Phone number must be exactly 10 digits.",
-        {
-          variant: "warning",
-        }
+      const numericValue =
+        value
+          .replace(/\D/g, "")
+          .slice(0, 10);
+
+      setFormData(
+        (previous) => ({
+          ...previous,
+          phone:
+            numericValue,
+        })
       );
+
       return;
     }
 
-    setIsRegistering(true);
-
-    try {
-      const response =
-        await register(formData);
-
-      enqueueSnackbar(
-        response?.data?.message ||
-          "Registration successful! Please login.",
-        {
-          variant: "success",
-        }
-      );
-
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        password: "",
-        role: "",
-      });
-
-      setTimeout(() => {
-        setIsRegister(false);
-      }, 1000);
-    } catch (error) {
-      enqueueSnackbar(
-        error?.response?.data?.message ||
-          "Registration failed!",
-        {
-          variant: "error",
-        }
-      );
-    } finally {
-      setIsRegistering(false);
-    }
+    setFormData(
+      (previous) => ({
+        ...previous,
+        [name]: value,
+      })
+    );
   };
 
+  const handleSubmit =
+    async (event) => {
+      event.preventDefault();
+
+      if (
+        formData.phone.length !==
+        10
+      ) {
+        enqueueSnackbar(
+          "Phone number must be exactly 10 digits.",
+          {
+            variant:
+              "warning",
+          }
+        );
+
+        return;
+      }
+
+      if (
+        !formData.restaurantName.trim()
+      ) {
+        enqueueSnackbar(
+          "Please enter your restaurant name.",
+          {
+            variant:
+              "warning",
+          }
+        );
+
+        return;
+      }
+
+      setIsRegistering(
+        true
+      );
+
+      try {
+        const response =
+          await register(
+            formData
+          );
+
+        enqueueSnackbar(
+          response?.data?.message ||
+            "Restaurant account created successfully! Please login.",
+          {
+            variant:
+              "success",
+          }
+        );
+
+        setFormData({
+          name: "",
+          restaurantName:
+            "",
+          email: "",
+          phone: "",
+          password: "",
+        });
+
+        setTimeout(() => {
+          setIsRegister(
+            false
+          );
+        }, 1000);
+      } catch (error) {
+        enqueueSnackbar(
+          error?.response?.data
+            ?.message ||
+            "Registration failed!",
+          {
+            variant:
+              "error",
+          }
+        );
+      } finally {
+        setIsRegistering(
+          false
+        );
+      }
+    };
+
   return (
-    <form onSubmit={handleSubmit}>
-      {/* NAME */}
+    <form
+      onSubmit={
+        handleSubmit
+      }
+    >
+      {/* =================================================
+          RESTAURANT NAME
+         ================================================= */}
 
       <TicketField
-        label="EMPLOYEE NAME"
+        label="RESTAURANT NAME"
+        icon={FiHome}
+      >
+        <input
+          type="text"
+          name="restaurantName"
+          value={
+            formData.restaurantName
+          }
+          onChange={
+            handleChange
+          }
+          placeholder="Your restaurant name"
+          maxLength={120}
+          className="bg-transparent flex-1 text-[#2A241D] placeholder:text-[#a89e8b] focus:outline-none text-sm"
+          required
+        />
+      </TicketField>
+
+      {/* =================================================
+          OWNER NAME
+         ================================================= */}
+
+      <TicketField
+        label="OWNER / ADMIN NAME"
         icon={FiUser}
       >
         <input
           type="text"
           name="name"
-          value={formData.name}
-          onChange={handleChange}
+          value={
+            formData.name
+          }
+          onChange={
+            handleChange
+          }
           placeholder="Full name"
           className="bg-transparent flex-1 text-[#2A241D] placeholder:text-[#a89e8b] focus:outline-none text-sm"
           required
         />
       </TicketField>
 
-      {/* EMAIL */}
+      {/* =================================================
+          EMAIL
+         ================================================= */}
 
       <TicketField
-        label="EMPLOYEE EMAIL"
+        label="OWNER EMAIL"
         icon={FiMail}
       >
         <input
           type="email"
           name="email"
-          value={formData.email}
-          onChange={handleChange}
+          value={
+            formData.email
+          }
+          onChange={
+            handleChange
+          }
           placeholder="you@restro.com"
           className="bg-transparent flex-1 text-[#2A241D] placeholder:text-[#a89e8b] focus:outline-none text-sm"
           required
         />
       </TicketField>
 
-      {/* PHONE */}
+      {/* =================================================
+          PHONE
+         ================================================= */}
 
       <TicketField
-        label="EMPLOYEE PHONE"
+        label="OWNER PHONE"
         icon={FiPhone}
       >
         <input
           type="tel"
           name="phone"
-          value={formData.phone}
-          onChange={handleChange}
+          value={
+            formData.phone
+          }
+          onChange={
+            handleChange
+          }
           placeholder="10-digit number"
           inputMode="numeric"
           maxLength={10}
@@ -212,7 +293,9 @@ const Register = ({
         />
       </TicketField>
 
-      {/* PASSWORD */}
+      {/* =================================================
+          PASSWORD
+         ================================================= */}
 
       <TicketField
         label="PASSWORD"
@@ -225,8 +308,12 @@ const Register = ({
               : "password"
           }
           name="password"
-          value={formData.password}
-          onChange={handleChange}
+          value={
+            formData.password
+          }
+          onChange={
+            handleChange
+          }
           placeholder="••••••••"
           className="bg-transparent flex-1 text-[#2A241D] placeholder:text-[#a89e8b] focus:outline-none text-sm"
           required
@@ -236,73 +323,58 @@ const Register = ({
           type="button"
           onClick={() =>
             setShowPassword(
-              (previous) =>
+              (
+                previous
+              ) =>
                 !previous
             )
           }
           className="text-[#8a806c] hover:text-[#BD5D31] transition-colors"
         >
           {showPassword ? (
-            <IoEyeOffOutline size={17} />
+            <IoEyeOffOutline
+              size={17}
+            />
           ) : (
-            <IoEyeOutline size={17} />
+            <IoEyeOutline
+              size={17}
+            />
           )}
         </button>
       </TicketField>
 
-      {/* ROLE */}
+      {/* =================================================
+          ROLE INFO
+         ================================================= */}
 
-      <div>
-        <label
-          className={`${labelFont} block text-[#8a806c] mb-2 mt-5 text-[10px] tracking-widest`}
+      <div className="mt-5 rounded-lg bg-[#E7E0D1] border border-[#C9BFAC] px-4 py-3">
+        <p
+          className={`${labelFont} text-[9px] tracking-widest text-[#8a806c]`}
         >
-          CHOOSE ROLE
-        </label>
+          ACCOUNT TYPE
+        </p>
 
-        <div className="relative flex bg-[#e7e0d1] rounded-lg p-1 gap-1">
-          {roles.map((role) => {
-            const active =
-              formData.role === role;
+        <p className="text-sm font-bold text-[#2A241D] mt-1">
+          Restaurant Admin / Owner
+        </p>
 
-            return (
-              <button
-                key={role}
-                type="button"
-                onClick={() =>
-                  handleRoleSelection(
-                    role
-                  )
-                }
-                className={`relative flex-1 py-2.5 rounded-md text-sm font-semibold transition-colors z-10 ${
-                  active
-                    ? "text-[#F3EEE3]"
-                    : "text-[#6b6252] hover:text-[#2A241D]"
-                }`}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="role-bg"
-                    className="absolute inset-0 bg-[#BD5D31] rounded-md -z-10"
-                    transition={{
-                      type: "spring",
-                      duration: 0.4,
-                    }}
-                  />
-                )}
-
-                {role}
-              </button>
-            );
-          })}
-        </div>
+        <p className="text-xs text-[#6b6252] mt-1 leading-relaxed">
+          Staff accounts like Waiter and Kitchen
+          will be created later from your restaurant
+          management panel.
+        </p>
       </div>
 
-      {/* REGISTER BUTTON */}
+      {/* =================================================
+          REGISTER
+         ================================================= */}
 
       <motion.button
         whileHover={
           !isRegistering
-            ? { scale: 1.015 }
+            ? {
+                scale: 1.015,
+              }
             : {}
         }
         whileTap={
@@ -314,7 +386,9 @@ const Register = ({
             : {}
         }
         type="submit"
-        disabled={isRegistering}
+        disabled={
+          isRegistering
+        }
         className={`w-full rounded-md mt-8 py-3.5 text-sm font-bold tracking-widest ${labelFont} transition-colors ${
           isRegistering
             ? "bg-[#d8cfbd] text-[#8a806c] cursor-not-allowed"
@@ -322,8 +396,8 @@ const Register = ({
         }`}
       >
         {isRegistering
-          ? "CREATING ACCOUNT..."
-          : "CREATE ACCOUNT"}
+          ? "CREATING RESTAURANT..."
+          : "CREATE RESTAURANT ACCOUNT"}
       </motion.button>
     </form>
   );

@@ -1,11 +1,14 @@
 const createHttpError = require("http-errors");
 const User = require("../models/userModel");
+const Restaurant = require("../models/restaurantModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const config = require("../config/config");
 
 // ======================================================
 // REGISTER
+// Public registration creates a RESTAURANT ADMIN account.
+// SuperAdmin / Waiter / Kitchen cannot be created here.
 // ======================================================
 
 const register = async (
@@ -16,81 +19,199 @@ const register = async (
   try {
     const {
       name,
+      restaurantName,
       phone,
       email,
       password,
-      role,
     } = req.body;
+
+    // --------------------------------------------------
+    // Required fields
+    // --------------------------------------------------
 
     if (
       !name ||
+      !restaurantName ||
       !phone ||
       !email ||
-      !password ||
-      !role
+      !password
     ) {
       return next(
         createHttpError(
           400,
-          "All fields are required!"
+          "Name, restaurant name, phone, email and password are required!"
         )
       );
     }
 
+    const cleanName =
+      String(name).trim();
+
+    const cleanRestaurantName =
+      String(restaurantName).trim();
+
+    const cleanEmail =
+      String(email)
+        .trim()
+        .toLowerCase();
+
+    const cleanPhone =
+      String(phone).replace(/\D/g, "");
+
     // --------------------------------------------------
-    // Public registration can NEVER create SuperAdmin.
+    // Validation
     // --------------------------------------------------
 
-    const allowedPublicRoles = [
-      "Waiter",
-      "Kitchen",
-      "Admin",
-    ];
-
-    if (!allowedPublicRoles.includes(role)) {
-      return next(
-        createHttpError(
-          403,
-          "This role cannot be created through public registration."
-        )
-      );
-    }
-
-    const normalizedEmail =
-      email.trim().toLowerCase();
-
-    const isUserPresent =
-      await User.findOne({
-        email: normalizedEmail,
-        role,
-      });
-
-    if (isUserPresent) {
+    if (!cleanName) {
       return next(
         createHttpError(
           400,
-          `A ${role} account with this email already exists!`
+          "Name is required!"
         )
       );
     }
 
-    const user = new User({
-      name: name.trim(),
-      phone,
-      email: normalizedEmail,
-      password,
-      role,
-    });
+    if (!cleanRestaurantName) {
+      return next(
+        createHttpError(
+          400,
+          "Restaurant name is required!"
+        )
+      );
+    }
+
+    if (
+      cleanRestaurantName.length >
+      120
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Restaurant name cannot exceed 120 characters!"
+        )
+      );
+    }
+
+    if (
+      !/^\d{10}$/.test(
+        cleanPhone
+      )
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Phone number must be exactly 10 digits!"
+        )
+      );
+    }
+
+    if (
+      !/\S+@\S+\.\S+/.test(
+        cleanEmail
+      )
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Please provide a valid email address!"
+        )
+      );
+    }
+
+    // --------------------------------------------------
+    // Check existing account
+    // --------------------------------------------------
+
+    const existingUser =
+      await User.findOne({
+        email: cleanEmail,
+      });
+
+    if (existingUser) {
+      return next(
+        createHttpError(
+          400,
+          "An account with this email already exists!"
+        )
+      );
+    }
+
+    // ==================================================
+    // CREATE ADMIN USER
+    // Role is NOT taken from frontend.
+    // Public registration is always Admin.
+    // ==================================================
+
+    const user =
+      new User({
+        name: cleanName,
+        phone: cleanPhone,
+        email: cleanEmail,
+        password,
+        role: "Admin",
+      });
 
     await user.save();
 
-    user.password = undefined;
+    // ==================================================
+    // CREATE RESTAURANT
+    // ==================================================
+
+    let restaurant;
+
+    try {
+      restaurant =
+        await Restaurant.create({
+          name: cleanRestaurantName,
+          owner: user._id,
+          status: "pending",
+        });
+    } catch (restaurantError) {
+      await User.findByIdAndDelete(
+        user._id
+      );
+
+      throw restaurantError;
+    }
+
+    // ==================================================
+    // LINK USER -> RESTAURANT
+    // ==================================================
+
+    try {
+      user.restaurantId =
+        restaurant._id;
+
+      await user.save();
+    } catch (userUpdateError) {
+      await Restaurant.findByIdAndDelete(
+        restaurant._id
+      );
+
+      await User.findByIdAndDelete(
+        user._id
+      );
+
+      throw userUpdateError;
+    }
+
+    // --------------------------------------------------
+    // Safe response
+    // --------------------------------------------------
+
+    const safeUser =
+      await User.findById(
+        user._id
+      ).select("-password");
 
     return res.status(201).json({
       success: true,
       message:
-        "New user created! Please login.",
-      data: user,
+        "Restaurant account created successfully! Please login.",
+      data: {
+        user: safeUser,
+        restaurant,
+      },
     });
   } catch (error) {
     next(error);
@@ -112,7 +233,10 @@ const login = async (
       password,
     } = req.body;
 
-    if (!email || !password) {
+    if (
+      !email ||
+      !password
+    ) {
       return next(
         createHttpError(
           400,
@@ -122,14 +246,18 @@ const login = async (
     }
 
     const normalizedEmail =
-      email.trim().toLowerCase();
+      email
+        .trim()
+        .toLowerCase();
 
     const usersWithEmail =
       await User.find({
         email: normalizedEmail,
       });
 
-    if (!usersWithEmail.length) {
+    if (
+      !usersWithEmail.length
+    ) {
       return next(
         createHttpError(
           401,
@@ -138,9 +266,12 @@ const login = async (
       );
     }
 
-    let matchedUser = null;
+    let matchedUser =
+      null;
 
-    for (const candidate of usersWithEmail) {
+    for (
+      const candidate of usersWithEmail
+    ) {
       const isMatch =
         await bcrypt.compare(
           password,
@@ -148,7 +279,8 @@ const login = async (
         );
 
       if (isMatch) {
-        matchedUser = candidate;
+        matchedUser =
+          candidate;
         break;
       }
     }
@@ -165,7 +297,8 @@ const login = async (
     const accessToken =
       jwt.sign(
         {
-          _id: matchedUser._id,
+          _id:
+            matchedUser._id,
         },
         config.accessTokenSecret,
         {
@@ -277,6 +410,10 @@ const getAllUsers = async (
   try {
     const users =
       await User.find({})
+        .populate(
+          "restaurantId",
+          "name status subscription"
+        )
         .select("-password")
         .sort({
           createdAt: -1,
@@ -284,7 +421,8 @@ const getAllUsers = async (
 
     return res.status(200).json({
       success: true,
-      count: users.length,
+      count:
+        users.length,
       data: users,
     });
   } catch (error) {
@@ -303,8 +441,9 @@ const updateUserSubscription =
     next
   ) => {
     try {
-      const { id } =
-        req.params;
+      const {
+        id,
+      } = req.params;
 
       const {
         isActive,
@@ -338,7 +477,9 @@ const updateUserSubscription =
       }
 
       const user =
-        await User.findById(id);
+        await User.findById(
+          id
+        );
 
       if (!user) {
         return next(
@@ -348,10 +489,6 @@ const updateUserSubscription =
           )
         );
       }
-
-      // --------------------------------------------------
-      // Never allow the SuperAdmin to disable itself.
-      // --------------------------------------------------
 
       if (
         req.user._id.toString() ===
@@ -366,11 +503,6 @@ const updateUserSubscription =
         );
       }
 
-      // --------------------------------------------------
-      // SUPER ADMIN cannot accidentally disable another
-      // SuperAdmin account through subscription controls.
-      // --------------------------------------------------
-
       if (
         user.role ===
           "SuperAdmin" &&
@@ -384,18 +516,22 @@ const updateUserSubscription =
         );
       }
 
-      // ==================================================
-      // DISABLE SUBSCRIPTION
-      // ==================================================
-
-      if (isActive === false) {
+      if (
+        isActive === false
+      ) {
         user.subscription = {
-          ...(user.subscription?.toObject
-            ? user.subscription.toObject()
-            : user.subscription || {}),
+          ...(
+            user.subscription?.toObject
+              ? user.subscription.toObject()
+              : user.subscription ||
+                {}
+          ),
 
-          startDate: null,
-          expiryDate: new Date(0),
+          startDate:
+            null,
+
+          expiryDate:
+            new Date(0),
         };
 
         await user.save();
@@ -413,15 +549,13 @@ const updateUserSubscription =
         });
       }
 
-      // ==================================================
-      // ACTIVATE SUBSCRIPTION
-      // ==================================================
-
       let newExpiryDate;
 
       if (expiryDate) {
         newExpiryDate =
-          new Date(expiryDate);
+          new Date(
+            expiryDate
+          );
 
         if (
           Number.isNaN(
@@ -458,9 +592,12 @@ const updateUserSubscription =
       }
 
       user.subscription = {
-        ...(user.subscription?.toObject
-          ? user.subscription.toObject()
-          : user.subscription || {}),
+        ...(
+          user.subscription?.toObject
+            ? user.subscription.toObject()
+            : user.subscription ||
+              {}
+        ),
 
         startDate:
           user.subscription
