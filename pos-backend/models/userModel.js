@@ -54,6 +54,27 @@ const userSchema =
         ],
       },
 
+      // =====================================================
+      // RESTAURANT RELATION
+      // =====================================================
+
+      restaurantId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Restaurant",
+        default: null,
+        index: true,
+      },
+
+      // =====================================================
+      // CURRENT SUBSCRIPTION
+      //
+      // NOTE:
+      // Abhi compatibility ke liye user-level subscription
+      // ko remove nahi kar rahe.
+      // Later chunk me restaurant-level subscription par
+      // migrate karenge.
+      // =====================================================
+
       subscription: {
         plan: {
           type: String,
