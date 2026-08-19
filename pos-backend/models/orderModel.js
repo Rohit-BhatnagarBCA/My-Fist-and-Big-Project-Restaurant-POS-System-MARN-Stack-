@@ -2,10 +2,28 @@ const mongoose = require("mongoose");
 
 const orderSchema = new mongoose.Schema(
   {
+    restaurantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Restaurant",
+      required: true,
+      index: true,
+    },
+
     customerDetails: {
-      name: { type: String, required: true },
-      phone: { type: String, required: true },
-      guests: { type: Number, required: true },
+      name: {
+        type: String,
+        required: true,
+      },
+
+      phone: {
+        type: String,
+        required: true,
+      },
+
+      guests: {
+        type: Number,
+        required: true,
+      },
     },
 
     orderStatus: {
@@ -13,8 +31,6 @@ const orderSchema = new mongoose.Schema(
       required: true,
     },
 
-    // "Dine In" orders are tied to a table;
-    // "Packing" (takeaway/parcel) orders have no table.
     orderType: {
       type: String,
       enum: ["Dine In", "Packing"],
@@ -27,9 +43,20 @@ const orderSchema = new mongoose.Schema(
     },
 
     bills: {
-      total: { type: Number, required: true },
-      tax: { type: Number, required: true },
-      totalWithTax: { type: Number, required: true },
+      total: {
+        type: Number,
+        required: true,
+      },
+
+      tax: {
+        type: Number,
+        required: true,
+      },
+
+      totalWithTax: {
+        type: Number,
+        required: true,
+      },
     },
 
     items: [
@@ -61,10 +88,10 @@ const orderSchema = new mongoose.Schema(
     table: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Table",
+      default: null,
     },
 
-    // Payment can only be Cash or Online.
-    // Online payment is handled manually through QR/UPI.
+    // Cash or Online only.
     paymentMethod: {
       type: String,
       enum: ["Cash", "Online"],
@@ -76,4 +103,12 @@ const orderSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Order", orderSchema);
+orderSchema.index({
+  restaurantId: 1,
+  orderDate: -1,
+});
+
+module.exports = mongoose.model(
+  "Order",
+  orderSchema
+);
