@@ -11,7 +11,10 @@ const PORT = config.port;
 
 connectDB();
 
-// Middlewares
+// ============================================================
+// MIDDLEWARES
+// ============================================================
+
 app.use(
   cors({
     credentials: true,
@@ -22,10 +25,14 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-// Root Endpoint
+// ============================================================
+// ROOT
+// ============================================================
+
 app.get("/", (req, res) => {
   res.json({
-    message: "Hello from POS Server!",
+    message:
+      "Hello from POS Server!",
   });
 });
 
@@ -33,13 +40,37 @@ app.get("/", (req, res) => {
 // API ROUTES
 // ============================================================
 
-app.use("/api/user", require("./routes/userRoute"));
-app.use("/api/order", require("./routes/orderRoute"));
-app.use("/api/table", require("./routes/tableRoute"));
-app.use("/api/category", require("./routes/categoryRoute"));
-app.use("/api/dish", require("./routes/dishRoute"));
+app.use(
+  "/api/user",
+  require("./routes/userRoute")
+);
 
-// Manual Subscription Request System
+app.use(
+  "/api/restaurant",
+  require("./routes/restaurantRoute")
+);
+
+app.use(
+  "/api/order",
+  require("./routes/orderRoute")
+);
+
+app.use(
+  "/api/table",
+  require("./routes/tableRoute")
+);
+
+app.use(
+  "/api/category",
+  require("./routes/categoryRoute")
+);
+
+app.use(
+  "/api/dish",
+  require("./routes/dishRoute")
+);
+
+// Manual subscription requests
 app.use(
   "/api/subscription-request",
   require("./routes/subscriptionRequestRoute")
@@ -49,7 +80,9 @@ app.use(
 // GLOBAL ERROR HANDLER
 // ============================================================
 
-app.use(globalErrorHandler);
+app.use(
+  globalErrorHandler
+);
 
 // ============================================================
 // SERVER
