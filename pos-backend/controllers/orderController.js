@@ -1,7 +1,8 @@
 const createHttpError = require("http-errors");
 const Order = require("../models/orderModel");
 const Dish = require("../models/dishModel");
-const { default: mongoose } = require("mongoose");
+const Table = require("../models/tableModel");
+const mongoose = require("mongoose");
 
 // Tax rate must stay in sync with
 // pos-frontend/src/components/menu/Bill.jsx
@@ -10,29 +11,80 @@ const TAX_RATE = 5.25;
 // Only these payment methods are allowed.
 // Online means manual QR/UPI payment.
 // There is no Razorpay payment gateway anymore.
-const ALLOWED_PAYMENT_METHODS = ["Cash", "Online"];
+const ALLOWED_PAYMENT_METHODS = [
+  "Cash",
+  "Online",
+];
 
-// Shared by addOrder and addItemsToOrder:
-// deducts stock for each item when the dish has an explicit stock quantity.
-const adjustItemsForStock = async (items) => {
+// ============================================================
+// RESTAURANT HELPER
+// ============================================================
+
+const requireRestaurant = (
+  req,
+  next
+) => {
+  if (!req.user?.restaurantId) {
+    next(
+      createHttpError(
+        403,
+        "Your account is not linked to a restaurant."
+      )
+    );
+
+    return null;
+  }
+
+  return req.user.restaurantId;
+};
+
+// ============================================================
+// STOCK ADJUSTMENT
+//
+// IMPORTANT:
+// Every dish lookup/update is restricted to the current
+// restaurant.
+// ============================================================
+
+const adjustItemsForStock = async (
+  items,
+  restaurantId
+) => {
   const stockAdjustments = [];
   const adjustedItems = [];
 
   for (const item of items) {
-    // No valid dish reference — pass the item through unchanged.
-    if (!item.dishId || !mongoose.Types.ObjectId.isValid(item.dishId)) {
+    // No valid dish reference.
+    if (
+      !item.dishId ||
+      !mongoose.Types.ObjectId.isValid(
+        item.dishId
+      )
+    ) {
       adjustedItems.push(item);
       continue;
     }
 
-    const currentDish = await Dish.findById(item.dishId);
+    // --------------------------------------------------------
+    // VERY IMPORTANT:
+    // Dish must belong to current restaurant.
+    // --------------------------------------------------------
+
+    const currentDish =
+      await Dish.findOne({
+        _id: item.dishId,
+        restaurantId,
+      });
 
     if (!currentDish) {
-      adjustedItems.push(item);
-      continue;
+      throw createHttpError(
+        404,
+        `Dish "${item.name || item.dishId}" was not found in your restaurant.`
+      );
     }
 
-    const rawQty = currentDish.quantity;
+    const rawQty =
+      currentDish.quantity;
 
     const hasSpecificStock =
       rawQty !== undefined &&
@@ -40,36 +92,69 @@ const adjustItemsForStock = async (items) => {
       Number(rawQty) > 0;
 
     if (hasSpecificStock) {
-      const dishBefore = await Dish.findOneAndUpdate(
-        { _id: item.dishId },
-        [
+      // ------------------------------------------------------
+      // Atomic stock reduction scoped to restaurant.
+      // ------------------------------------------------------
+
+      const dishBefore =
+        await Dish.findOneAndUpdate(
           {
-            $set: {
-              quantity: {
-                $max: [
-                  {
-                    $subtract: ["$quantity", item.quantity],
-                  },
-                  0,
-                ],
-              },
+            _id: item.dishId,
+            restaurantId,
+            quantity: {
+              $gt: 0,
             },
           },
-        ],
-        { new: false }
-      );
+          [
+            {
+              $set: {
+                quantity: {
+                  $max: [
+                    {
+                      $subtract: [
+                        "$quantity",
+                        item.quantity,
+                      ],
+                    },
+                    0,
+                  ],
+                },
+              },
+            },
+          ],
+          {
+            new: false,
+          }
+        );
 
-      const availableBefore = dishBefore?.quantity || 0;
+      if (!dishBefore) {
+        throw createHttpError(
+          400,
+          `${item.name || "Dish"} is currently out of stock.`
+        );
+      }
+
+      const availableBefore =
+        Number(
+          dishBefore.quantity
+        ) || 0;
+
+      const requestedQty =
+        Number(item.quantity) || 0;
 
       const actualQty = Math.min(
-        item.quantity,
+        requestedQty,
         availableBefore
       );
 
-      if (actualQty < item.quantity) {
+      if (
+        actualQty <
+        requestedQty
+      ) {
         stockAdjustments.push({
           name: item.name,
-          requested: item.quantity,
+          requested:
+            requestedQty,
           given: actualQty,
         });
       }
@@ -77,16 +162,28 @@ const adjustItemsForStock = async (items) => {
       if (actualQty > 0) {
         adjustedItems.push({
           ...item,
-          quantity: actualQty,
-          price: item.pricePerQuantity * actualQty,
+          quantity:
+            actualQty,
+          price:
+            item.pricePerQuantity *
+            actualQty,
         });
       }
 
       // Mark unavailable only when stock reaches zero.
-      if (availableBefore - actualQty <= 0) {
-        await Dish.findByIdAndUpdate(
-          item.dishId,
-          { isAvailable: false }
+      if (
+        availableBefore -
+          actualQty <=
+        0
+      ) {
+        await Dish.findOneAndUpdate(
+          {
+            _id: item.dishId,
+            restaurantId,
+          },
+          {
+            isAvailable: false,
+          }
         );
       }
     } else {
@@ -101,8 +198,63 @@ const adjustItemsForStock = async (items) => {
   };
 };
 
-const addOrder = async (req, res, next) => {
+// ============================================================
+// VALIDATE TABLE OWNERSHIP
+// ============================================================
+
+const validateTable = async (
+  tableId,
+  restaurantId
+) => {
+  if (!tableId) {
+    return null;
+  }
+
+  if (
+    !mongoose.Types.ObjectId.isValid(
+      tableId
+    )
+  ) {
+    throw createHttpError(
+      400,
+      "Invalid table id!"
+    );
+  }
+
+  const table =
+    await Table.findOne({
+      _id: tableId,
+      restaurantId,
+    });
+
+  if (!table) {
+    throw createHttpError(
+      404,
+      "Table not found in this restaurant!"
+    );
+  }
+
+  return table;
+};
+
+// ============================================================
+// ADD ORDER
+// ============================================================
+
+const addOrder = async (
+  req,
+  res,
+  next
+) => {
   try {
+    const restaurantId =
+      requireRestaurant(
+        req,
+        next
+      );
+
+    if (!restaurantId) return;
+
     const {
       customerDetails,
       orderStatus,
@@ -112,85 +264,145 @@ const addOrder = async (req, res, next) => {
       paymentMethod,
     } = req.body;
 
-    // Backend-level payment validation.
-    if (!ALLOWED_PAYMENT_METHODS.includes(paymentMethod)) {
-      const error = createHttpError(
-        400,
-        "Invalid payment method. Only Cash or Online is allowed."
-      );
+    // --------------------------------------------------------
+    // Payment validation
+    // --------------------------------------------------------
 
-      return next(error);
+    if (
+      !ALLOWED_PAYMENT_METHODS.includes(
+        paymentMethod
+      )
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Invalid payment method. Only Cash or Online is allowed."
+        )
+      );
     }
 
-    const items = req.body.items || [];
+    // --------------------------------------------------------
+    // Table validation
+    // --------------------------------------------------------
+
+    let selectedTable =
+      null;
+
+    if (
+      orderType !== "Packing" &&
+      table
+    ) {
+      selectedTable =
+        await validateTable(
+          table,
+          restaurantId
+        );
+    }
+
+    const items =
+      req.body.items || [];
 
     const {
       adjustedItems,
       stockAdjustments,
-    } = await adjustItemsForStock(items);
+    } =
+      await adjustItemsForStock(
+        items,
+        restaurantId
+      );
 
     if (
       items.length > 0 &&
       adjustedItems.length === 0
     ) {
-      const error = createHttpError(
-        400,
-        "All items in this order are out of stock. Please refresh the menu."
+      return next(
+        createHttpError(
+          400,
+          "All items in this order are out of stock. Please refresh the menu."
+        )
       );
-
-      return next(error);
     }
 
-    // Recompute bills from actual adjusted items.
-    const total = adjustedItems.reduce(
-      (sum, item) => sum + item.price,
-      0
-    );
+    // --------------------------------------------------------
+    // Recompute bills from actual items
+    // --------------------------------------------------------
+
+    const total =
+      adjustedItems.reduce(
+        (sum, item) =>
+          sum + item.price,
+        0
+      );
 
     const tax = Number(
-      ((total * TAX_RATE) / 100).toFixed(2)
+      (
+        (total * TAX_RATE) /
+        100
+      ).toFixed(2)
     );
 
-    const totalWithTax = Number(
-      (total + tax).toFixed(2)
-    );
+    const totalWithTax =
+      Number(
+        (
+          total + tax
+        ).toFixed(2)
+      );
 
-    // Only explicitly allowed order fields are accepted.
-    // This prevents unnecessary client-side fields from being
-    // copied directly into the Order document.
+    // --------------------------------------------------------
+    // Order data
+    // --------------------------------------------------------
+
     const orderData = {
+      restaurantId,
+
       customerDetails,
+
       orderStatus,
+
       orderType,
-      items: adjustedItems,
+
+      items:
+        adjustedItems,
+
       bills: {
         total,
+
         tax,
+
         totalWithTax,
       },
+
       paymentMethod,
     };
 
-    // Preserve orderDate when supplied.
     if (orderDate) {
-      orderData.orderDate = orderDate;
+      orderData.orderDate =
+        orderDate;
     }
 
-    // Packing orders don't need a table.
-    if (orderType !== "Packing" && table) {
-      orderData.table = table;
+    if (
+      orderType !== "Packing" &&
+      selectedTable
+    ) {
+      orderData.table =
+        selectedTable._id;
     }
 
-    const order = new Order(orderData);
+    const order =
+      new Order(orderData);
 
     await order.save();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: "Order created!",
+      message:
+        "Order created!",
+
       data: order,
+
       stockAdjustments:
-        stockAdjustments.length > 0
+        stockAdjustments.length >
+        0
           ? stockAdjustments
           : undefined,
     });
@@ -199,114 +411,182 @@ const addOrder = async (req, res, next) => {
   }
 };
 
-// Appends more items into an already placed order.
-const addItemsToOrder = async (req, res, next) => {
+// ============================================================
+// APPEND ITEMS TO EXISTING ORDER
+// ============================================================
+
+const addItemsToOrder = async (
+  req,
+  res,
+  next
+) => {
   try {
-    const { id } = req.params;
-    const newItems = req.body.items || [];
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      const error = createHttpError(
-        400,
-        "Invalid order id!"
+    const restaurantId =
+      requireRestaurant(
+        req,
+        next
       );
 
-      return next(error);
-    }
+    if (!restaurantId) return;
 
-    if (newItems.length === 0) {
-      const error = createHttpError(
-        400,
-        "No items provided!"
+    const { id } =
+      req.params;
+
+    const newItems =
+      req.body.items || [];
+
+    if (
+      !mongoose.Types.ObjectId.isValid(
+        id
+      )
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Invalid order id!"
+        )
       );
-
-      return next(error);
     }
 
-    const order = await Order.findById(id);
+    if (
+      newItems.length === 0
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "No items provided!"
+        )
+      );
+    }
+
+    // --------------------------------------------------------
+    // Order MUST belong to current restaurant.
+    // --------------------------------------------------------
+
+    const order =
+      await Order.findOne({
+        _id: id,
+        restaurantId,
+      });
 
     if (!order) {
-      const error = createHttpError(
-        404,
-        "Order not found!"
+      return next(
+        createHttpError(
+          404,
+          "Order not found!"
+        )
       );
-
-      return next(error);
     }
 
-    if (order.orderStatus === "Ready") {
-      const error = createHttpError(
-        400,
-        "This order is already marked Ready. Please place a new order instead."
+    if (
+      order.orderStatus ===
+      "Ready"
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "This order is already marked Ready. Please place a new order instead."
+        )
       );
-
-      return next(error);
     }
 
     const {
       adjustedItems,
       stockAdjustments,
-    } = await adjustItemsForStock(newItems);
-
-    if (adjustedItems.length === 0) {
-      const error = createHttpError(
-        400,
-        "All items are out of stock. Please refresh the menu."
+    } =
+      await adjustItemsForStock(
+        newItems,
+        restaurantId
       );
 
-      return next(error);
+    if (
+      adjustedItems.length ===
+      0
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "All items are out of stock. Please refresh the menu."
+        )
+      );
     }
 
-    // Merge same dishes.
-    const mergedItems = [...order.items];
+    // --------------------------------------------------------
+    // Merge same dishes
+    // --------------------------------------------------------
+
+    const mergedItems = [
+      ...order.items,
+    ];
 
     for (const newItem of adjustedItems) {
-      const existing = newItem.dishId
-        ? mergedItems.find(
-            (item) =>
-              item.dishId &&
-              item.dishId.toString() ===
-                newItem.dishId.toString()
-          )
-        : null;
+      const existing =
+        newItem.dishId
+          ? mergedItems.find(
+              (item) =>
+                item.dishId &&
+                item.dishId.toString() ===
+                  newItem.dishId.toString()
+            )
+          : null;
 
       if (existing) {
-        existing.quantity += newItem.quantity;
-        existing.price += newItem.price;
+        existing.quantity +=
+          newItem.quantity;
+
+        existing.price +=
+          newItem.price;
       } else {
-        mergedItems.push(newItem);
+        mergedItems.push(
+          newItem
+        );
       }
     }
 
-    const total = mergedItems.reduce(
-      (sum, item) => sum + item.price,
-      0
-    );
+    const total =
+      mergedItems.reduce(
+        (sum, item) =>
+          sum + item.price,
+        0
+      );
 
     const tax = Number(
-      ((total * TAX_RATE) / 100).toFixed(2)
+      (
+        (total * TAX_RATE) /
+        100
+      ).toFixed(2)
     );
 
-    const totalWithTax = Number(
-      (total + tax).toFixed(2)
-    );
+    const totalWithTax =
+      Number(
+        (
+          total + tax
+        ).toFixed(2)
+      );
 
-    order.items = mergedItems;
+    order.items =
+      mergedItems;
 
     order.bills = {
       total,
+
       tax,
+
       totalWithTax,
     };
 
     await order.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "Items added to order!",
+      message:
+        "Items added to order!",
+
       data: order,
+
       stockAdjustments:
-        stockAdjustments.length > 0
+        stockAdjustments.length >
+        0
           ? stockAdjustments
           : undefined,
     });
@@ -315,31 +595,58 @@ const addItemsToOrder = async (req, res, next) => {
   }
 };
 
-const getOrderById = async (req, res, next) => {
-  try {
-    const { id } = req.params;
+// ============================================================
+// GET ORDER BY ID
+// ============================================================
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      const error = createHttpError(
-        404,
-        "Invalid id!"
+const getOrderById = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const restaurantId =
+      requireRestaurant(
+        req,
+        next
       );
 
-      return next(error);
+    if (!restaurantId) return;
+
+    const { id } =
+      req.params;
+
+    if (
+      !mongoose.Types.ObjectId.isValid(
+        id
+      )
+    ) {
+      return next(
+        createHttpError(
+          404,
+          "Invalid id!"
+        )
+      );
     }
 
-    const order = await Order.findById(id);
+    const order =
+      await Order.findOne({
+        _id: id,
+        restaurantId,
+      }).populate(
+        "table"
+      );
 
     if (!order) {
-      const error = createHttpError(
-        404,
-        "Order not found!"
+      return next(
+        createHttpError(
+          404,
+          "Order not found!"
+        )
       );
-
-      return next(error);
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: order,
     });
@@ -348,11 +655,37 @@ const getOrderById = async (req, res, next) => {
   }
 };
 
-const getOrders = async (req, res, next) => {
-  try {
-    const orders = await Order.find().populate("table");
+// ============================================================
+// GET ALL ORDERS
+// ============================================================
 
-    res.status(200).json({
+const getOrders = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const restaurantId =
+      requireRestaurant(
+        req,
+        next
+      );
+
+    if (!restaurantId) return;
+
+    const orders =
+      await Order.find({
+        restaurantId,
+      })
+        .populate(
+          "table"
+        )
+        .sort({
+          orderDate: -1,
+        });
+
+    return res.status(200).json({
+      success: true,
       data: orders,
     });
   } catch (error) {
@@ -360,38 +693,72 @@ const getOrders = async (req, res, next) => {
   }
 };
 
-const updateOrder = async (req, res, next) => {
-  try {
-    const { orderStatus } = req.body;
-    const { id } = req.params;
+// ============================================================
+// UPDATE ORDER STATUS
+// ============================================================
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      const error = createHttpError(
-        404,
-        "Invalid id!"
+const updateOrder = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const restaurantId =
+      requireRestaurant(
+        req,
+        next
       );
 
-      return next(error);
+    if (!restaurantId) return;
+
+    const {
+      orderStatus,
+    } = req.body;
+
+    const { id } =
+      req.params;
+
+    if (
+      !mongoose.Types.ObjectId.isValid(
+        id
+      )
+    ) {
+      return next(
+        createHttpError(
+          404,
+          "Invalid id!"
+        )
+      );
     }
 
-    const order = await Order.findByIdAndUpdate(
-      id,
-      { orderStatus },
-      { new: true }
-    );
+    const order =
+      await Order.findOneAndUpdate(
+        {
+          _id: id,
+          restaurantId,
+        },
+        {
+          orderStatus,
+        },
+        {
+          new: true,
+        }
+      );
 
     if (!order) {
-      const error = createHttpError(
-        404,
-        "Order not found!"
+      return next(
+        createHttpError(
+          404,
+          "Order not found!"
+        )
       );
-
-      return next(error);
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "Order updated",
+      message:
+        "Order updated",
+
       data: order,
     });
   } catch (error) {
@@ -399,49 +766,88 @@ const updateOrder = async (req, res, next) => {
   }
 };
 
-// Only deletes orders that are fully done:
-// status "Ready" AND table is already free.
-const deleteCompletedOrders = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const orders = await Order.find({
-      orderStatus: "Ready",
-    }).populate("table", "status");
+// ============================================================
+// DELETE COMPLETED ORDERS
+//
+// Only completed orders belonging to current restaurant.
+// ============================================================
 
-    const idsToDelete = orders
-      .filter(
-        (order) =>
-          !order.table ||
-          order.table.status === "Available"
-      )
-      .map((order) => order._id);
+const deleteCompletedOrders =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      const restaurantId =
+        requireRestaurant(
+          req,
+          next
+        );
 
-    if (idsToDelete.length === 0) {
+      if (!restaurantId)
+        return;
+
+      const orders =
+        await Order.find({
+          restaurantId,
+
+          orderStatus:
+            "Ready",
+        }).populate(
+          "table",
+          "status"
+        );
+
+      const idsToDelete =
+        orders
+          .filter(
+            (order) =>
+              !order.table ||
+              order.table.status ===
+                "Available"
+          )
+          .map(
+            (order) =>
+              order._id
+          );
+
+      if (
+        idsToDelete.length ===
+        0
+      ) {
+        return res
+          .status(200)
+          .json({
+            success: true,
+
+            message:
+              "No completed orders to delete.",
+
+            deletedCount: 0,
+          });
+      }
+
+      await Order.deleteMany({
+        _id: {
+          $in: idsToDelete,
+        },
+
+        restaurantId,
+      });
+
       return res.status(200).json({
         success: true,
-        message: "No completed orders to delete.",
-        deletedCount: 0,
+
+        message: `${idsToDelete.length} completed order(s) deleted!`,
+
+        deletedCount:
+          idsToDelete.length,
       });
+    } catch (error) {
+      next(error);
     }
-
-    await Order.deleteMany({
-      _id: {
-        $in: idsToDelete,
-      },
-    });
-
-    res.status(200).json({
-      success: true,
-      message: `${idsToDelete.length} completed order(s) deleted!`,
-      deletedCount: idsToDelete.length,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+  };
 
 module.exports = {
   addOrder,

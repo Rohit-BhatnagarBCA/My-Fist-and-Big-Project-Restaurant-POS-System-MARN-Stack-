@@ -3,122 +3,382 @@ const Category = require("../models/categoryModel");
 const createHttpError = require("http-errors");
 const mongoose = require("mongoose");
 
-const addDish = async (req, res, next) => {
+// ============================================================
+// HELPER
+// ============================================================
+
+const requireRestaurant = (req, next) => {
+  if (!req.user?.restaurantId) {
+    next(
+      createHttpError(
+        403,
+        "Your account is not linked to a restaurant."
+      )
+    );
+
+    return null;
+  }
+
+  return req.user.restaurantId;
+};
+
+// ============================================================
+// ADD DISH
+// ============================================================
+
+const addDish = async (
+  req,
+  res,
+  next
+) => {
   try {
-    const { name, price, category, quantity } = req.body;
+    const restaurantId =
+      requireRestaurant(req, next);
 
-    if (!name || !price || !category) {
-      const error = createHttpError(400, "Please provide name, price and category!");
-      return next(error);
-    }
+    if (!restaurantId) return;
 
-    if (!mongoose.Types.ObjectId.isValid(category)) {
-      const error = createHttpError(400, "Invalid category id!");
-      return next(error);
-    }
-
-    const categoryExists = await Category.findById(category);
-    if (!categoryExists) {
-      const error = createHttpError(404, "Category not found!");
-      return next(error);
-    }
-
-    const stockQty = Number(quantity) || 0;
-
-    const newDish = new Dish({
+    const {
       name,
       price,
       category,
-      quantity: stockQty,
-      isAvailable: stockQty > 0,
-    });
-    await newDish.save();
+      quantity,
+    } = req.body;
 
-    res
-      .status(201)
-      .json({ success: true, message: "Dish added!", data: newDish });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const getDishes = async (req, res, next) => {
-  try {
-    const dishes = await Dish.find().populate("category", "name icon bgColor");
-    res.status(200).json({ success: true, data: dishes });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const updateDish = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { isAvailable, name, price, category, quantity } = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      const error = createHttpError(400, "Invalid dish id!");
-      return next(error);
+    if (
+      !name ||
+      price === undefined ||
+      price === null ||
+      !category
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Please provide name, price and category!"
+        )
+      );
     }
 
-    if (category !== undefined && !mongoose.Types.ObjectId.isValid(category)) {
-      const error = createHttpError(400, "Invalid category id!");
-      return next(error);
+    if (
+      !mongoose.Types.ObjectId.isValid(
+        category
+      )
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Invalid category id!"
+        )
+      );
+    }
+
+    // --------------------------------------------------------
+    // Category MUST belong to same restaurant.
+    // --------------------------------------------------------
+
+    const categoryExists =
+      await Category.findOne({
+        _id: category,
+        restaurantId,
+      });
+
+    if (!categoryExists) {
+      return next(
+        createHttpError(
+          404,
+          "Category not found in this restaurant!"
+        )
+      );
+    }
+
+    const stockQty =
+      Number(quantity) || 0;
+
+    const newDish =
+      new Dish({
+        restaurantId,
+        name:
+          String(name).trim(),
+        price,
+        category,
+        quantity: stockQty,
+        isAvailable:
+          stockQty > 0,
+      });
+
+    await newDish.save();
+
+    const populatedDish =
+      await newDish.populate(
+        "category",
+        "name icon bgColor"
+      );
+
+    return res.status(201).json({
+      success: true,
+      message: "Dish added!",
+      data: populatedDish,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
+// GET DISHES
+// ============================================================
+
+const getDishes = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const restaurantId =
+      requireRestaurant(req, next);
+
+    if (!restaurantId) return;
+
+    const dishes =
+      await Dish.find({
+        restaurantId,
+      }).populate(
+        "category",
+        "name icon bgColor"
+      );
+
+    return res.status(200).json({
+      success: true,
+      data: dishes,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
+// UPDATE DISH
+// ============================================================
+
+const updateDish = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const restaurantId =
+      requireRestaurant(req, next);
+
+    if (!restaurantId) return;
+
+    const { id } =
+      req.params;
+
+    const {
+      isAvailable,
+      name,
+      price,
+      category,
+      quantity,
+    } = req.body;
+
+    if (
+      !mongoose.Types.ObjectId.isValid(id)
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Invalid dish id!"
+        )
+      );
+    }
+
+    const existingDish =
+      await Dish.findOne({
+        _id: id,
+        restaurantId,
+      });
+
+    if (!existingDish) {
+      return next(
+        createHttpError(
+          404,
+          "Dish not found!"
+        )
+      );
+    }
+
+    // --------------------------------------------------------
+    // If category changes, new category must belong
+    // to the same restaurant.
+    // --------------------------------------------------------
+
+    if (
+      category !== undefined
+    ) {
+      if (
+        !mongoose.Types.ObjectId.isValid(
+          category
+        )
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Invalid category id!"
+          )
+        );
+      }
+
+      const categoryExists =
+        await Category.findOne({
+          _id: category,
+          restaurantId,
+        });
+
+      if (!categoryExists) {
+        return next(
+          createHttpError(
+            404,
+            "Category not found in this restaurant!"
+          )
+        );
+      }
     }
 
     const updateFields = {};
-    if (name !== undefined) updateFields.name = name;
-    if (price !== undefined) updateFields.price = price;
-    if (category !== undefined) updateFields.category = category;
 
-    if (quantity !== undefined) {
-      const stockQty = Number(quantity) || 0;
-      updateFields.quantity = stockQty;
-      // Editing stock from the Add/Edit form auto-reflects availability.
-      updateFields.isAvailable = stockQty > 0;
+    if (
+      name !== undefined
+    ) {
+      updateFields.name =
+        String(name).trim();
     }
 
-    // The list's manual Switch sends isAvailable on its own (no quantity) —
-    // that still works as an independent manual override.
-    if (isAvailable !== undefined && quantity === undefined) {
-      updateFields.isAvailable = isAvailable;
+    if (
+      price !== undefined
+    ) {
+      updateFields.price =
+        price;
     }
 
-    const dish = await Dish.findByIdAndUpdate(id, updateFields, {
-      new: true,
-    }).populate("category", "name icon bgColor");
+    if (
+      category !== undefined
+    ) {
+      updateFields.category =
+        category;
+    }
+
+    if (
+      quantity !== undefined
+    ) {
+      const stockQty =
+        Number(quantity) || 0;
+
+      updateFields.quantity =
+        stockQty;
+
+      updateFields.isAvailable =
+        stockQty > 0;
+    }
+
+    if (
+      isAvailable !== undefined &&
+      quantity === undefined
+    ) {
+      updateFields.isAvailable =
+        isAvailable;
+    }
+
+    const dish =
+      await Dish.findOneAndUpdate(
+        {
+          _id: id,
+          restaurantId,
+        },
+        updateFields,
+        {
+          new: true,
+          runValidators: true,
+        }
+      ).populate(
+        "category",
+        "name icon bgColor"
+      );
 
     if (!dish) {
-      const error = createHttpError(404, "Dish not found!");
-      return next(error);
+      return next(
+        createHttpError(
+          404,
+          "Dish not found!"
+        )
+      );
     }
 
-    res.status(200).json({ success: true, message: "Dish updated!", data: dish });
+    return res.status(200).json({
+      success: true,
+      message: "Dish updated!",
+      data: dish,
+    });
   } catch (error) {
     next(error);
   }
 };
 
-const deleteDish = async (req, res, next) => {
+// ============================================================
+// DELETE DISH
+// ============================================================
+
+const deleteDish = async (
+  req,
+  res,
+  next
+) => {
   try {
-    const { id } = req.params;
+    const restaurantId =
+      requireRestaurant(req, next);
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      const error = createHttpError(400, "Invalid dish id!");
-      return next(error);
+    if (!restaurantId) return;
+
+    const { id } =
+      req.params;
+
+    if (
+      !mongoose.Types.ObjectId.isValid(id)
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Invalid dish id!"
+        )
+      );
     }
 
-    const dish = await Dish.findByIdAndDelete(id);
+    const dish =
+      await Dish.findOneAndDelete({
+        _id: id,
+        restaurantId,
+      });
 
     if (!dish) {
-      const error = createHttpError(404, "Dish not found!");
-      return next(error);
+      return next(
+        createHttpError(
+          404,
+          "Dish not found!"
+        )
+      );
     }
 
-    res.status(200).json({ success: true, message: "Dish deleted!" });
+    return res.status(200).json({
+      success: true,
+      message: "Dish deleted!",
+    });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = { addDish, getDishes, updateDish, deleteDish };
+module.exports = {
+  addDish,
+  getDishes,
+  updateDish,
+  deleteDish,
+};
