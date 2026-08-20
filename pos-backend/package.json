@@ -2,10 +2,11 @@
   "name": "pos-backend",
   "version": "1.0.0",
   "main": "index.js",
- "scripts": {
+"scripts": {
   "dev": "nodemon app.js",
   "start": "node app.js",
-  "create:superadmin": "node scripts/createSuperAdmin.js"
+  "create:superadmin": "node scripts/createSuperAdmin.js",
+  "migrate:restaurant": "node scripts/migrateLegacyRestaurant.js"
 },
   "keywords": [],
   "author": "",
