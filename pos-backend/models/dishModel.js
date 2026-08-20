@@ -6,7 +6,6 @@ const dishSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Restaurant",
       required: true,
-      index: true,
     },
 
     name: {
@@ -40,10 +39,6 @@ const dishSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
-dishSchema.index({
-  restaurantId: 1,
-});
 
 module.exports = mongoose.model(
   "Dish",

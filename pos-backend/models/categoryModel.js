@@ -6,7 +6,6 @@ const categorySchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Restaurant",
       required: true,
-      index: true,
     },
 
     name: {
@@ -30,8 +29,6 @@ const categorySchema = new mongoose.Schema(
   }
 );
 
-// Same category name can exist in multiple restaurants,
-// but not twice inside one restaurant.
 categorySchema.index(
   { restaurantId: 1, name: 1 },
   { unique: true }

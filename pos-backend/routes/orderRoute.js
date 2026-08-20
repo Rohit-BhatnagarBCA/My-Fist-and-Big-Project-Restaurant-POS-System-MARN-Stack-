@@ -1,4 +1,5 @@
 const express = require("express");
+
 const {
   addOrder,
   addItemsToOrder,
@@ -7,20 +8,56 @@ const {
   updateOrder,
   deleteCompletedOrders,
 } = require("../controllers/orderController");
-const { isVerifiedUser } = require("../middlewares/tokenVerification");
-const { isAdmin } = require("../middlewares/roleVerification");
+
+const {
+  isVerifiedUser,
+  isAdmin,
+} = require("../middlewares/tokenVerification");
+
 const router = express.Router();
 
-router.route("/").post(isVerifiedUser, addOrder);
-router.route("/").get(isVerifiedUser, getOrders);
+router
+  .route("/")
+  .post(
+    isVerifiedUser,
+    addOrder
+  );
 
-// NOTE: this must come BEFORE "/:id" below, otherwise Express will treat
-// "completed" as an :id value and this route will never be reached.
-router.route("/completed").delete(isVerifiedUser, isAdmin, deleteCompletedOrders);
+router
+  .route("/")
+  .get(
+    isVerifiedUser,
+    getOrders
+  );
 
-router.route("/:id/items").put(isVerifiedUser, addItemsToOrder);
+// Must be before "/:id"
+router
+  .route("/completed")
+  .delete(
+    isVerifiedUser,
+    isAdmin,
+    deleteCompletedOrders
+  );
 
-router.route("/:id").get(isVerifiedUser, getOrderById);
-router.route("/:id").put(isVerifiedUser, updateOrder);
+router
+  .route("/:id/items")
+  .put(
+    isVerifiedUser,
+    addItemsToOrder
+  );
+
+router
+  .route("/:id")
+  .get(
+    isVerifiedUser,
+    getOrderById
+  );
+
+router
+  .route("/:id")
+  .put(
+    isVerifiedUser,
+    updateOrder
+  );
 
 module.exports = router;

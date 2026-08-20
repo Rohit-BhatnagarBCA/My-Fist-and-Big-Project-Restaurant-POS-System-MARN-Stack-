@@ -6,7 +6,6 @@ const tableSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Restaurant",
       required: true,
-      index: true,
     },
 
     tableNo: {
@@ -35,8 +34,6 @@ const tableSchema = new mongoose.Schema(
   }
 );
 
-// Same table number can exist in different restaurants,
-// but cannot duplicate inside the same restaurant.
 tableSchema.index(
   { restaurantId: 1, tableNo: 1 },
   { unique: true }

@@ -6,7 +6,6 @@ const orderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Restaurant",
       required: true,
-      index: true,
     },
 
     customerDetails: {
@@ -91,7 +90,6 @@ const orderSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Cash or Online only.
     paymentMethod: {
       type: String,
       enum: ["Cash", "Online"],
