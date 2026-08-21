@@ -21,123 +21,127 @@ import {
   useLocation,
 } from "react-router-dom";
 
-const useLoadData =
-  () => {
-    const dispatch =
-      useDispatch();
+const PUBLIC_ROUTES = [
+  "/auth",
+  "/about",
+];
 
-    const navigate =
-      useNavigate();
+const useLoadData = () => {
+  const dispatch =
+    useDispatch();
 
-    const location =
-      useLocation();
+  const navigate =
+    useNavigate();
 
-    const [
-      isLoading,
-      setIsLoading,
-    ] = useState(true);
+  const location =
+    useLocation();
 
-    useEffect(() => {
-      const fetchUser =
-        async () => {
-          try {
-            const {
-              data,
-            } =
-              await getUserData();
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
 
-            const userData =
-              data.data;
+  useEffect(() => {
+    const currentPath =
+      location.pathname;
 
-            if (!userData) {
-              throw new Error(
-                "User data not found!"
-              );
-            }
+    // --------------------------------------------------------
+    // Public pages do not need auth validation.
+    // This prevents unnecessary 401 requests on /auth and /about.
+    // --------------------------------------------------------
 
-            const restaurant =
-              userData.restaurantId;
+    if (
+      PUBLIC_ROUTES.includes(
+        currentPath
+      )
+    ) {
+      setIsLoading(false);
+      return;
+    }
 
-            const restaurantSubscription =
-              restaurant
-                ?.subscription ||
-              null;
+    const fetchUser =
+      async () => {
+        try {
+          const {
+            data,
+          } =
+            await getUserData();
 
-            const subscription =
-              restaurantSubscription ||
-              userData.subscription ||
-              null;
+          const userData =
+            data?.data;
 
-            dispatch(
-              setUser({
-                _id:
-                  userData._id,
-
-                name:
-                  userData.name,
-
-                email:
-                  userData.email,
-
-                phone:
-                  userData.phone,
-
-                role:
-                  userData.role,
-
-                restaurantId:
-                  restaurant?._id ||
-                  userData.restaurantId ||
-                  null,
-
-                restaurant,
-
-                subscription,
-              })
-            );
-          } catch (error) {
-            dispatch(
-              removeUser()
-            );
-
-            const publicRoutes =
-              [
-                "/auth",
-                "/about",
-              ];
-
-            if (
-              !publicRoutes.includes(
-                location.pathname
-              )
-            ) {
-              navigate(
-                "/auth",
-                {
-                  replace: true,
-                }
-              );
-            }
-
-            console.log(
-              "Auth Fetch Error:",
-              error
-            );
-          } finally {
-            setIsLoading(
-              false
+          if (!userData) {
+            throw new Error(
+              "User data not found!"
             );
           }
-        };
 
-      fetchUser();
-    }, [
-      dispatch,
-      navigate,
-      location.pathname,
-    ]);
+          const restaurant =
+            userData.restaurantId ||
+            null;
 
-    return isLoading;
-  };
+          const subscription =
+            restaurant?.subscription ||
+            userData.subscription ||
+            null;
+
+          dispatch(
+            setUser({
+              _id:
+                userData._id,
+
+              name:
+                userData.name,
+
+              email:
+                userData.email,
+
+              phone:
+                userData.phone,
+
+              role:
+                userData.role,
+
+              restaurantId:
+                restaurant?._id ||
+                null,
+
+              restaurant,
+
+              subscription,
+
+              isAuth: true,
+            })
+          );
+        } catch (error) {
+          dispatch(
+            removeUser()
+          );
+
+          console.log(
+            "Auth Fetch Error:",
+            error
+          );
+
+          navigate(
+            "/auth",
+            {
+              replace: true,
+            }
+          );
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+    fetchUser();
+  }, [
+    dispatch,
+    navigate,
+    location.pathname,
+  ]);
+
+  return isLoading;
+};
 
 export default useLoadData;

@@ -187,7 +187,7 @@ const register = async (
         .select("-password")
         .populate(
           "restaurantId",
-          "name status subscription"
+          "name status subscription owner"
         );
 
     return res.status(201).json({
@@ -297,6 +297,14 @@ const login = async (
         }
       );
 
+    // ======================================================
+    // LOCALHOST / PRODUCTION COOKIE SETTINGS
+    // ======================================================
+
+    const isProduction =
+      process.env.NODE_ENV ===
+      "production";
+
     res.cookie(
       "accessToken",
       accessToken,
@@ -310,9 +318,13 @@ const login = async (
 
         httpOnly: true,
 
-        sameSite: "none",
+        sameSite:
+          isProduction
+            ? "none"
+            : "lax",
 
-        secure: true,
+        secure:
+          isProduction,
       }
     );
 
@@ -378,12 +390,22 @@ const logout = async (
   next
 ) => {
   try {
+    const isProduction =
+      process.env.NODE_ENV ===
+      "production";
+
     res.clearCookie(
       "accessToken",
       {
         httpOnly: true,
-        sameSite: "none",
-        secure: true,
+
+        sameSite:
+          isProduction
+            ? "none"
+            : "lax",
+
+        secure:
+          isProduction,
       }
     );
 
@@ -413,9 +435,7 @@ const getMyProfile =
         await User.findById(
           req.user._id
         )
-          .select(
-            "-password"
-          )
+          .select("-password")
           .populate(
             "restaurantId",
             "name status subscription owner"
@@ -532,9 +552,7 @@ const updateMyProfile =
             runValidators: true,
           }
         )
-          .select(
-            "-password"
-          )
+          .select("-password")
           .populate(
             "restaurantId",
             "name status subscription owner"
@@ -892,9 +910,7 @@ const getMyStaff = async (
           ],
         },
       })
-        .select(
-          "-password"
-        )
+        .select("-password")
         .sort({
           createdAt: -1,
         });
@@ -1380,9 +1396,11 @@ const updateUserSubscription =
               isActive
                 ? {
                     ...subscription,
+
                     startDate:
                       subscription.startDate ||
                       new Date(),
+
                     expiryDate:
                       newExpiryDate ||
                       new Date(
@@ -1396,8 +1414,10 @@ const updateUserSubscription =
                   }
                 : {
                     ...subscription,
+
                     startDate:
                       null,
+
                     expiryDate:
                       new Date(0),
                   },
@@ -1419,10 +1439,12 @@ const updateUserSubscription =
 
       return res.status(200).json({
         success: true,
+
         message:
           isActive
             ? "Subscription activated successfully!"
             : "Subscription disabled successfully!",
+
         data:
           updated,
       });
