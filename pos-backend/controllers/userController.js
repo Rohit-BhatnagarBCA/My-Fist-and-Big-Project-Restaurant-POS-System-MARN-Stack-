@@ -6,8 +6,9 @@ const jwt = require("jsonwebtoken");
 const config = require("../config/config");
 
 // ======================================================
-// PUBLIC REGISTER
-// Creates only Restaurant Admin accounts.
+// REGISTER
+// Public registration creates a RESTAURANT ADMIN account.
+// SuperAdmin / Waiter / Kitchen cannot be created here.
 // ======================================================
 
 const register = async (
@@ -43,11 +44,9 @@ const register = async (
       String(name).trim();
 
     const cleanRestaurantName =
-      String(
-        restaurantName
-      ).trim();
+      String(restaurantName).trim();
 
-    const normalizedEmail =
+    const cleanEmail =
       String(email)
         .trim()
         .toLowerCase();
@@ -57,6 +56,36 @@ const register = async (
         /\D/g,
         ""
       );
+
+    if (!cleanName) {
+      return next(
+        createHttpError(
+          400,
+          "Name is required!"
+        )
+      );
+    }
+
+    if (!cleanRestaurantName) {
+      return next(
+        createHttpError(
+          400,
+          "Restaurant name is required!"
+        )
+      );
+    }
+
+    if (
+      cleanRestaurantName.length >
+      120
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Restaurant name cannot exceed 120 characters!"
+        )
+      );
+    }
 
     if (
       !/^\d{10}$/.test(
@@ -73,7 +102,7 @@ const register = async (
 
     if (
       !/\S+@\S+\.\S+/.test(
-        normalizedEmail
+        cleanEmail
       )
     ) {
       return next(
@@ -86,7 +115,7 @@ const register = async (
 
     const existingUser =
       await User.findOne({
-        email: normalizedEmail,
+        email: cleanEmail,
       });
 
     if (existingUser) {
@@ -102,7 +131,7 @@ const register = async (
       new User({
         name: cleanName,
         phone: cleanPhone,
-        email: normalizedEmail,
+        email: cleanEmail,
         password,
         role: "Admin",
       });
@@ -154,7 +183,12 @@ const register = async (
     const safeUser =
       await User.findById(
         user._id
-      ).select("-password");
+      )
+        .select("-password")
+        .populate(
+          "restaurantId",
+          "name status subscription"
+        );
 
     return res.status(201).json({
       success: true,
@@ -198,14 +232,18 @@ const login = async (
     }
 
     const normalizedEmail =
-      email
+      String(email)
         .trim()
         .toLowerCase();
 
     const usersWithEmail =
       await User.find({
-        email: normalizedEmail,
-      });
+        email:
+          normalizedEmail,
+      }).populate(
+        "restaurantId",
+        "name status subscription owner"
+      );
 
     if (
       !usersWithEmail.length
@@ -269,8 +307,11 @@ const login = async (
           60 *
           24 *
           30,
+
         httpOnly: true,
+
         sameSite: "none",
+
         secure: true,
       }
     );
@@ -302,7 +343,12 @@ const getUserData = async (
     const user =
       await User.findById(
         req.user._id
-      ).select("-password");
+      )
+        .select("-password")
+        .populate(
+          "restaurantId",
+          "name status subscription owner"
+        );
 
     if (!user) {
       return next(
@@ -352,8 +398,298 @@ const logout = async (
 };
 
 // ======================================================
+// MY PROFILE
+// Works even without subscription.
+// ======================================================
+
+const getMyProfile =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      const user =
+        await User.findById(
+          req.user._id
+        )
+          .select(
+            "-password"
+          )
+          .populate(
+            "restaurantId",
+            "name status subscription owner"
+          );
+
+      if (!user) {
+        return next(
+          createHttpError(
+            404,
+            "User not found."
+          )
+        );
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+// ======================================================
+// UPDATE MY PROFILE
+//
+// Email / role / restaurant cannot be changed.
+// ======================================================
+
+const updateMyProfile =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      const {
+        name,
+        phone,
+      } = req.body;
+
+      const updates = {};
+
+      if (
+        name !== undefined
+      ) {
+        const cleanName =
+          String(
+            name
+          ).trim();
+
+        if (!cleanName) {
+          return next(
+            createHttpError(
+              400,
+              "Name cannot be empty."
+            )
+          );
+        }
+
+        updates.name =
+          cleanName;
+      }
+
+      if (
+        phone !== undefined
+      ) {
+        const cleanPhone =
+          String(
+            phone
+          ).replace(
+            /\D/g,
+            ""
+          );
+
+        if (
+          !/^\d{10}$/.test(
+            cleanPhone
+          )
+        ) {
+          return next(
+            createHttpError(
+              400,
+              "Phone number must be exactly 10 digits."
+            )
+          );
+        }
+
+        updates.phone =
+          cleanPhone;
+      }
+
+      if (
+        Object.keys(
+          updates
+        ).length === 0
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "No profile changes provided."
+          )
+        );
+      }
+
+      const updatedUser =
+        await User.findByIdAndUpdate(
+          req.user._id,
+          {
+            $set: updates,
+          },
+          {
+            new: true,
+            runValidators: true,
+          }
+        )
+          .select(
+            "-password"
+          )
+          .populate(
+            "restaurantId",
+            "name status subscription owner"
+          );
+
+      if (!updatedUser) {
+        return next(
+          createHttpError(
+            404,
+            "User not found."
+          )
+        );
+      }
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Profile updated successfully.",
+        data:
+          updatedUser,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+// ======================================================
+// CHANGE PASSWORD
+// ======================================================
+
+const changePassword =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      const {
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      } = req.body;
+
+      if (
+        !currentPassword ||
+        !newPassword ||
+        !confirmPassword
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Current password, new password and confirmation are required."
+          )
+        );
+      }
+
+      if (
+        newPassword !==
+        confirmPassword
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "New passwords do not match."
+          )
+        );
+      }
+
+      if (
+        newPassword.length <
+        6
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "New password must contain at least 6 characters."
+          )
+        );
+      }
+
+      const user =
+        await User.findById(
+          req.user._id
+        );
+
+      if (!user) {
+        return next(
+          createHttpError(
+            404,
+            "User not found."
+          )
+        );
+      }
+
+      const currentMatches =
+        await bcrypt.compare(
+          currentPassword,
+          user.password
+        );
+
+      if (!currentMatches) {
+        return next(
+          createHttpError(
+            401,
+            "Current password is incorrect."
+          )
+        );
+      }
+
+      const samePassword =
+        await bcrypt.compare(
+          newPassword,
+          user.password
+        );
+
+      if (samePassword) {
+        return next(
+          createHttpError(
+            400,
+            "New password must be different from current password."
+          )
+        );
+      }
+
+      const hashedPassword =
+        await bcrypt.hash(
+          newPassword,
+          10
+        );
+
+      await User.updateOne(
+        {
+          _id:
+            user._id,
+        },
+        {
+          $set: {
+            password:
+              hashedPassword,
+          },
+        }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Password changed successfully.",
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+// ======================================================
 // ADMIN — CREATE STAFF
-// Waiter / Kitchen only
 // ======================================================
 
 const createStaff = async (
@@ -463,7 +799,8 @@ const createStaff = async (
 
     const existingUser =
       await User.findOne({
-        email: normalizedEmail,
+        email:
+          normalizedEmail,
       });
 
     if (existingUser) {
@@ -477,11 +814,19 @@ const createStaff = async (
 
     const staff =
       new User({
-        name: cleanName,
-        email: normalizedEmail,
-        phone: cleanPhone,
+        name:
+          cleanName,
+
+        email:
+          normalizedEmail,
+
+        phone:
+          cleanPhone,
+
         password,
+
         role,
+
         restaurantId:
           req.user.restaurantId,
       });
@@ -539,6 +884,7 @@ const getMyStaff = async (
       await User.find({
         restaurantId:
           req.user.restaurantId,
+
         role: {
           $in: [
             "Waiter",
@@ -554,19 +900,22 @@ const getMyStaff = async (
         });
 
     const counts = {
-      total: staff.length,
+      total:
+        staff.length,
 
-      waiter: staff.filter(
-        (user) =>
-          user.role ===
-          "Waiter"
-      ).length,
+      waiter:
+        staff.filter(
+          (user) =>
+            user.role ===
+            "Waiter"
+        ).length,
 
-      kitchen: staff.filter(
-        (user) =>
-          user.role ===
-          "Kitchen"
-      ).length,
+      kitchen:
+        staff.filter(
+          (user) =>
+            user.role ===
+            "Kitchen"
+        ).length,
     };
 
     return res.status(200).json({
@@ -581,8 +930,6 @@ const getMyStaff = async (
 
 // ======================================================
 // ADMIN — UPDATE STAFF
-// Can change name, phone, role.
-// Password update is intentionally separate.
 // ======================================================
 
 const updateStaff = async (
@@ -614,8 +961,9 @@ const updateStaff = async (
       );
     }
 
-    const { id } =
-      req.params;
+    const {
+      id,
+    } = req.params;
 
     const {
       name,
@@ -625,8 +973,8 @@ const updateStaff = async (
 
     if (
       !id ||
-      !id.match(
-        /^[0-9a-fA-F]{24}$/
+      !/^[0-9a-fA-F]{24}$/.test(
+        id
       )
     ) {
       return next(
@@ -654,8 +1002,10 @@ const updateStaff = async (
     const staff =
       await User.findOne({
         _id: id,
+
         restaurantId:
           req.user.restaurantId,
+
         role: {
           $in: [
             "Waiter",
@@ -679,7 +1029,9 @@ const updateStaff = async (
       name !== undefined
     ) {
       const cleanName =
-        String(name).trim();
+        String(
+          name
+        ).trim();
 
       if (!cleanName) {
         return next(
@@ -698,7 +1050,9 @@ const updateStaff = async (
       phone !== undefined
     ) {
       const cleanPhone =
-        String(phone).replace(
+        String(
+          phone
+        ).replace(
           /\D/g,
           ""
         );
@@ -728,8 +1082,9 @@ const updateStaff = async (
     }
 
     if (
-      Object.keys(updates)
-        .length === 0
+      Object.keys(
+        updates
+      ).length === 0
     ) {
       return next(
         createHttpError(
@@ -743,8 +1098,10 @@ const updateStaff = async (
       await User.findOneAndUpdate(
         {
           _id: id,
+
           restaurantId:
             req.user.restaurantId,
+
           role: {
             $in: [
               "Waiter",
@@ -767,7 +1124,8 @@ const updateStaff = async (
       success: true,
       message:
         "Staff updated successfully.",
-      data: updatedStaff,
+      data:
+        updatedStaff,
     });
   } catch (error) {
     next(error);
@@ -807,13 +1165,14 @@ const deleteStaff = async (
       );
     }
 
-    const { id } =
-      req.params;
+    const {
+      id,
+    } = req.params;
 
     if (
       !id ||
-      !id.match(
-        /^[0-9a-fA-F]{24}$/
+      !/^[0-9a-fA-F]{24}$/.test(
+        id
       )
     ) {
       return next(
@@ -827,8 +1186,10 @@ const deleteStaff = async (
     const staff =
       await User.findOne({
         _id: id,
+
         restaurantId:
           req.user.restaurantId,
+
         role: {
           $in: [
             "Waiter",
@@ -848,6 +1209,7 @@ const deleteStaff = async (
 
     await User.deleteOne({
       _id: id,
+
       restaurantId:
         req.user.restaurantId,
     });
@@ -885,7 +1247,8 @@ const getAllUsers = async (
 
     return res.status(200).json({
       success: true,
-      count: users.length,
+      count:
+        users.length,
       data: users,
     });
   } catch (error) {
@@ -915,8 +1278,8 @@ const updateUserSubscription =
 
       if (
         !id ||
-        !id.match(
-          /^[0-9a-fA-F]{24}$/
+        !/^[0-9a-fA-F]{24}$/.test(
+          id
         )
       ) {
         return next(
@@ -940,26 +1303,15 @@ const updateUserSubscription =
       }
 
       const user =
-        await User.findById(id);
+        await User.findById(
+          id
+        );
 
       if (!user) {
         return next(
           createHttpError(
             404,
             "User not found!"
-          )
-        );
-      }
-
-      if (
-        req.user._id.toString() ===
-          id &&
-        isActive === false
-      ) {
-        return next(
-          createHttpError(
-            400,
-            "You cannot disable your own Super Admin account!"
           )
         );
       }
@@ -977,105 +1329,102 @@ const updateUserSubscription =
         );
       }
 
+      const newExpiryDate =
+        expiryDate
+          ? new Date(
+              expiryDate
+            )
+          : null;
+
       if (
-        isActive === false
+        expiryDate &&
+        Number.isNaN(
+          newExpiryDate.getTime()
+        )
       ) {
-        user.subscription = {
-          ...(
-            user.subscription?.toObject
-              ? user.subscription.toObject()
-              : user.subscription ||
-                {}
-          ),
-          startDate: null,
-          expiryDate:
-            new Date(0),
-        };
-
-        await user.save();
-
-        const safeUser =
-          user.toObject();
-
-        delete safeUser.password;
-
-        return res.status(200).json({
-          success: true,
-          message:
-            "Subscription disabled successfully!",
-          data: safeUser,
-        });
-      }
-
-      let newExpiryDate;
-
-      if (expiryDate) {
-        newExpiryDate =
-          new Date(
-            expiryDate
-          );
-
-        if (
-          Number.isNaN(
-            newExpiryDate.getTime()
+        return next(
+          createHttpError(
+            400,
+            "Invalid expiry date!"
           )
-        ) {
-          return next(
-            createHttpError(
-              400,
-              "Invalid expiry date!"
-            )
-          );
-        }
-
-        if (
-          newExpiryDate <=
-          new Date()
-        ) {
-          return next(
-            createHttpError(
-              400,
-              "Expiry date must be in the future!"
-            )
-          );
-        }
-      } else {
-        newExpiryDate =
-          new Date();
-
-        newExpiryDate.setDate(
-          newExpiryDate.getDate() +
-            30
         );
       }
 
-      user.subscription = {
-        ...(
-          user.subscription?.toObject
-            ? user.subscription.toObject()
-            : user.subscription ||
-              {}
-        ),
-        startDate:
-          user.subscription
-            ?.startDate ||
-          new Date(),
-        expiryDate:
-          newExpiryDate,
-      };
+      if (
+        isActive &&
+        newExpiryDate &&
+        newExpiryDate <=
+          new Date()
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Expiry date must be in the future!"
+          )
+        );
+      }
 
-      await user.save();
+      const subscription =
+        user.subscription?.toObject
+          ? user.subscription.toObject()
+          : user.subscription ||
+            {};
 
-      const safeUser =
-        user.toObject();
+      await User.updateOne(
+        {
+          _id: user._id,
+        },
+        {
+          $set: {
+            subscription:
+              isActive
+                ? {
+                    ...subscription,
+                    startDate:
+                      subscription.startDate ||
+                      new Date(),
+                    expiryDate:
+                      newExpiryDate ||
+                      new Date(
+                        Date.now() +
+                          30 *
+                            24 *
+                            60 *
+                            60 *
+                            1000
+                      ),
+                  }
+                : {
+                    ...subscription,
+                    startDate:
+                      null,
+                    expiryDate:
+                      new Date(0),
+                  },
+          },
+        }
+      );
 
-      delete safeUser.password;
+      const updated =
+        await User.findById(
+          user._id
+        )
+          .select(
+            "-password"
+          )
+          .populate(
+            "restaurantId",
+            "name status subscription"
+          );
 
       return res.status(200).json({
         success: true,
         message:
-          "Subscription activated successfully!",
-        data: safeUser,
+          isActive
+            ? "Subscription activated successfully!"
+            : "Subscription disabled successfully!",
+        data:
+          updated,
       });
     } catch (error) {
       next(error);
@@ -1087,6 +1436,10 @@ module.exports = {
   login,
   getUserData,
   logout,
+
+  getMyProfile,
+  updateMyProfile,
+  changePassword,
 
   createStaff,
   getMyStaff,

@@ -1,78 +1,143 @@
-import { useDispatch } from "react-redux";
-import { getUserData } from "../https";
-import { useEffect, useState } from "react";
-import { removeUser, setUser } from "../redux/slices/userSlice";
-import { useNavigate, useLocation } from "react-router-dom";
+import {
+  useDispatch,
+} from "react-redux";
 
-const useLoadData = () => {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const location = useLocation();
+import {
+  getUserData,
+} from "../https";
 
-  const [isLoading, setIsLoading] = useState(true);
+import {
+  useEffect,
+  useState,
+} from "react";
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const { data } = await getUserData();
-        const userData = data.data;
+import {
+  removeUser,
+  setUser,
+} from "../redux/slices/userSlice";
 
-        if (!userData) {
-          throw new Error("User data not found!");
-        }
+import {
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
 
-        /*
-         * IMPORTANT:
-         *
-         * No dummy/fake subscription is created here.
-         *
-         * Whatever subscription exists in MongoDB is used.
-         */
-        dispatch(
-          setUser({
-            _id: userData._id,
-            name: userData.name,
-            email: userData.email,
-            phone: userData.phone,
-            role: userData.role,
-            subscription: userData.subscription || null,
-          })
-        );
+const useLoadData =
+  () => {
+    const dispatch =
+      useDispatch();
 
-      } catch (error) {
-        dispatch(removeUser());
+    const navigate =
+      useNavigate();
 
-        /*
-         * These pages are accessible without authentication.
-         */
-        const publicRoutes = [
-          "/auth",
-          "/about",
-        ];
+    const location =
+      useLocation();
 
-        if (!publicRoutes.includes(location.pathname)) {
-          navigate("/auth", { replace: true });
-        }
+    const [
+      isLoading,
+      setIsLoading,
+    ] = useState(true);
 
-        console.log(
-          "Auth Fetch Error:",
-          error
-        );
+    useEffect(() => {
+      const fetchUser =
+        async () => {
+          try {
+            const {
+              data,
+            } =
+              await getUserData();
 
-      } finally {
-        setIsLoading(false);
-      }
-    };
+            const userData =
+              data.data;
 
-    fetchUser();
+            if (!userData) {
+              throw new Error(
+                "User data not found!"
+              );
+            }
 
-  }, [
-    dispatch,
-    navigate,
-    location.pathname
-  ]);
+            const restaurant =
+              userData.restaurantId;
 
-  return isLoading;
-};
+            const restaurantSubscription =
+              restaurant
+                ?.subscription ||
+              null;
+
+            const subscription =
+              restaurantSubscription ||
+              userData.subscription ||
+              null;
+
+            dispatch(
+              setUser({
+                _id:
+                  userData._id,
+
+                name:
+                  userData.name,
+
+                email:
+                  userData.email,
+
+                phone:
+                  userData.phone,
+
+                role:
+                  userData.role,
+
+                restaurantId:
+                  restaurant?._id ||
+                  userData.restaurantId ||
+                  null,
+
+                restaurant,
+
+                subscription,
+              })
+            );
+          } catch (error) {
+            dispatch(
+              removeUser()
+            );
+
+            const publicRoutes =
+              [
+                "/auth",
+                "/about",
+              ];
+
+            if (
+              !publicRoutes.includes(
+                location.pathname
+              )
+            ) {
+              navigate(
+                "/auth",
+                {
+                  replace: true,
+                }
+              );
+            }
+
+            console.log(
+              "Auth Fetch Error:",
+              error
+            );
+          } finally {
+            setIsLoading(
+              false
+            );
+          }
+        };
+
+      fetchUser();
+    }, [
+      dispatch,
+      navigate,
+      location.pathname,
+    ]);
+
+    return isLoading;
+  };
 
 export default useLoadData;

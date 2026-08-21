@@ -8,3 +8,4 @@ export { default as Dashboard } from "./Dashboard.jsx";
 export { default as Subscription } from "./Subscription.jsx";
 export { default as SuperAdmin } from "./SuperAdmin.jsx";
 export { default as Staff } from "./Staff.jsx";
+export { default as Profile } from "./Profile.jsx";

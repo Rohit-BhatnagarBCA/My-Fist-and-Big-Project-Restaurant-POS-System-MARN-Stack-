@@ -4,21 +4,25 @@ const {
   createRestaurant,
   getMyRestaurant,
   updateMyRestaurant,
+
+  getAllRestaurants,
+  getRestaurantById,
+  updateRestaurantStatus,
 } = require("../controllers/restaurantController");
 
 const {
   isVerifiedUser,
   isAdmin,
+  isSuperAdmin,
 } = require("../middlewares/tokenVerification");
 
 const router =
   express.Router();
 
 // ============================================================
-// ADMIN RESTAURANT ROUTES
+// RESTAURANT ADMIN
 // ============================================================
 
-// Create restaurant
 router.post(
   "/",
   isVerifiedUser,
@@ -26,7 +30,6 @@ router.post(
   createRestaurant
 );
 
-// Get logged-in Admin's restaurant
 router.get(
   "/my",
   isVerifiedUser,
@@ -34,12 +37,36 @@ router.get(
   getMyRestaurant
 );
 
-// Update logged-in Admin's restaurant
 router.patch(
   "/my",
   isVerifiedUser,
   isAdmin,
   updateMyRestaurant
+);
+
+// ============================================================
+// SUPER ADMIN
+// ============================================================
+
+router.get(
+  "/admin/all",
+  isVerifiedUser,
+  isSuperAdmin,
+  getAllRestaurants
+);
+
+router.get(
+  "/admin/:id",
+  isVerifiedUser,
+  isSuperAdmin,
+  getRestaurantById
+);
+
+router.patch(
+  "/admin/:id/status",
+  isVerifiedUser,
+  isSuperAdmin,
+  updateRestaurantStatus
 );
 
 module.exports = router;

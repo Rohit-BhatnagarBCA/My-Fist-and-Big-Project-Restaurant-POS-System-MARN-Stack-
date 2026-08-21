@@ -17,6 +17,7 @@ import {
   Subscription,
   SuperAdmin,
   Staff,
+  Profile,
 } from "./pages";
 
 import Header from "./components/shared/Header";
@@ -38,12 +39,15 @@ function Layout() {
     "/super-admin",
   ];
 
-  const { isAuth } = useSelector(
-    (state) => state.user
-  );
+  const { isAuth } =
+    useSelector(
+      (state) => state.user
+    );
 
   if (isLoading) {
-    return <FullScreenLoader />;
+    return (
+      <FullScreenLoader />
+    );
   }
 
   return (
@@ -93,7 +97,9 @@ function Layout() {
 
         <Route
           path="/about"
-          element={<About />}
+          element={
+            <About />
+          }
         />
 
         {/* =====================================================
@@ -105,6 +111,20 @@ function Layout() {
           element={
             <AuthOnlyRoute>
               <Subscription />
+            </AuthOnlyRoute>
+          }
+        />
+
+        {/* =====================================================
+            PROFILE
+            No subscription required.
+           ===================================================== */}
+
+        <Route
+          path="/profile"
+          element={
+            <AuthOnlyRoute>
+              <Profile />
             </AuthOnlyRoute>
           }
         />
@@ -189,7 +209,7 @@ function Layout() {
 
         {/* =====================================================
             STAFF MANAGEMENT
-            Only Restaurant Admin
+            Only Restaurant Admin.
            ===================================================== */}
 
         <Route
@@ -230,7 +250,9 @@ function Layout() {
 
 // =============================================================
 // AUTH ONLY ROUTE
-// Login required, subscription not required
+// Login required.
+// Subscription is NOT required.
+// Used by Profile and Subscription.
 // =============================================================
 
 function AuthOnlyRoute({
@@ -277,7 +299,8 @@ function SuperAdminRoute({
   }
 
   if (
-    role !== "SuperAdmin"
+    role !==
+    "SuperAdmin"
   ) {
     return (
       <Navigate
@@ -303,13 +326,10 @@ function ProtectedRoutes({
     isAuth,
     role,
     subscription,
+    restaurant,
   } = useSelector(
     (state) => state.user
   );
-
-  // -----------------------------------------------------------
-  // Authentication
-  // -----------------------------------------------------------
 
   if (!isAuth) {
     return (
@@ -320,12 +340,10 @@ function ProtectedRoutes({
     );
   }
 
-  // -----------------------------------------------------------
-  // SuperAdmin gets separate panel
-  // -----------------------------------------------------------
-
+  // SuperAdmin has its own panel.
   if (
-    role === "SuperAdmin"
+    role ===
+    "SuperAdmin"
   ) {
     return (
       <Navigate
@@ -335,10 +353,7 @@ function ProtectedRoutes({
     );
   }
 
-  // -----------------------------------------------------------
-  // Allowed roles
-  // -----------------------------------------------------------
-
+  // Allowed-role restriction.
   if (
     allowedRoles &&
     !allowedRoles.includes(
@@ -353,10 +368,7 @@ function ProtectedRoutes({
     );
   }
 
-  // -----------------------------------------------------------
-  // Blocked roles
-  // -----------------------------------------------------------
-
+  // Blocked-role restriction.
   if (
     blockRoles.includes(
       role
@@ -371,6 +383,24 @@ function ProtectedRoutes({
   }
 
   // -----------------------------------------------------------
+  // Restaurant status
+  // -----------------------------------------------------------
+
+  if (
+    restaurant?.status ===
+      "suspended" ||
+    restaurant?.status ===
+      "expired"
+  ) {
+    return (
+      <Navigate
+        to="/about"
+        replace
+      />
+    );
+  }
+
+  // -----------------------------------------------------------
   // Subscription
   // -----------------------------------------------------------
 
@@ -379,10 +409,12 @@ function ProtectedRoutes({
       subscription?.linkedAdminEmail
     );
 
-  const hasStartDate =
-    Boolean(
-      subscription?.startDate
-    );
+  const startDate =
+    subscription?.startDate
+      ? new Date(
+          subscription.startDate
+        )
+      : null;
 
   const expiryDate =
     subscription?.expiryDate
@@ -391,19 +423,22 @@ function ProtectedRoutes({
         )
       : null;
 
-  const notExpired =
-    !expiryDate ||
-    expiryDate >=
-      new Date();
+  const now =
+    new Date();
+
+  const activeByDates =
+    startDate &&
+    expiryDate &&
+    now >=
+      startDate &&
+    now <
+      expiryDate;
 
   const hasSubscription =
     linkedStaff ||
-    (hasStartDate &&
-      notExpired);
-
-  // -----------------------------------------------------------
-  // No subscription
-  // -----------------------------------------------------------
+    Boolean(
+      activeByDates
+    );
 
   if (
     !hasSubscription

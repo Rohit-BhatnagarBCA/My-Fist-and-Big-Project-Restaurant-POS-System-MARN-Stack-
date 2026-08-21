@@ -1,10 +1,15 @@
-const express = require("express");
+const express =
+  require("express");
 
 const {
   register,
   login,
   getUserData,
   logout,
+
+  getMyProfile,
+  updateMyProfile,
+  changePassword,
 
   createStaff,
   getMyStaff,
@@ -25,7 +30,7 @@ const router =
   express.Router();
 
 // ============================================================
-// AUTHENTICATION
+// AUTH
 // ============================================================
 
 router.post(
@@ -54,8 +59,27 @@ router.get(
   getUserData
 );
 
+// Profile works WITHOUT subscription.
+router.get(
+  "/profile",
+  isVerifiedUser,
+  getMyProfile
+);
+
+router.patch(
+  "/profile",
+  isVerifiedUser,
+  updateMyProfile
+);
+
+router.patch(
+  "/password",
+  isVerifiedUser,
+  changePassword
+);
+
 // ============================================================
-// RESTAURANT ADMIN — STAFF
+// STAFF
 // ============================================================
 
 router.post(
@@ -104,4 +128,5 @@ router.patch(
   updateUserSubscription
 );
 
-module.exports = router;
+module.exports =
+  router;

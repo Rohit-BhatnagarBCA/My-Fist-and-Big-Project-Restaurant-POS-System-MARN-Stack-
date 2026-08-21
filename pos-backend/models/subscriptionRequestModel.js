@@ -1,96 +1,112 @@
 const mongoose = require("mongoose");
 
-const subscriptionRequestSchema = new mongoose.Schema(
-  {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
+const subscriptionRequestSchema =
+  new mongoose.Schema(
+    {
+      restaurantId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Restaurant",
+        required: true,
+        index: true,
+      },
 
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+        index: true,
+      },
 
-    email: {
-      type: String,
-      required: true,
-      lowercase: true,
-      trim: true,
-    },
+      name: {
+        type: String,
+        required: true,
+        trim: true,
+      },
 
-    plan: {
-      type: String,
-      enum: ["Basic", "Pro"],
-      required: true,
-    },
+      email: {
+        type: String,
+        required: true,
+        lowercase: true,
+        trim: true,
+      },
 
-    duration: {
-      type: String,
-      enum: ["Monthly", "4-Month", "Yearly"],
-      required: true,
-    },
+      plan: {
+        type: String,
+        enum: ["Basic", "Pro"],
+        required: true,
+      },
 
-    amount: {
-      type: Number,
-      required: true,
-      min: 1,
-    },
+      duration: {
+        type: String,
+        enum: [
+          "Monthly",
+          "4-Month",
+          "Yearly",
+        ],
+        required: true,
+      },
 
-    // User jo payment reference/UTR deta hai
-    paymentReference: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 100,
-    },
+      amount: {
+        type: Number,
+        required: true,
+        min: 1,
+      },
 
-    paymentNote: {
-      type: String,
-      trim: true,
-      maxlength: 500,
-      default: "",
-    },
+      paymentReference: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: 100,
+      },
 
-    status: {
-      type: String,
-      enum: ["Pending", "Approved", "Rejected"],
-      default: "Pending",
-      index: true,
-    },
+      paymentNote: {
+        type: String,
+        trim: true,
+        maxlength: 500,
+        default: "",
+      },
 
-    rejectionReason: {
-      type: String,
-      trim: true,
-      maxlength: 500,
-      default: "",
-    },
+      status: {
+        type: String,
+        enum: [
+          "Pending",
+          "Approved",
+          "Rejected",
+        ],
+        default: "Pending",
+        index: true,
+      },
 
-    reviewedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
+      rejectionReason: {
+        type: String,
+        trim: true,
+        maxlength: 500,
+        default: "",
+      },
 
-    reviewedAt: {
-      type: Date,
-      default: null,
-    },
+      reviewedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
 
-    subscriptionExpiry: {
-      type: Date,
-      default: null,
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
+      reviewedAt: {
+        type: Date,
+        default: null,
+      },
 
-module.exports = mongoose.model(
-  "SubscriptionRequest",
-  subscriptionRequestSchema
-);
+      subscriptionExpiry: {
+        type: Date,
+        default: null,
+      },
+    },
+    {
+      timestamps: true,
+    }
+  );
+
+module.exports =
+  mongoose.model(
+    "SubscriptionRequest",
+    subscriptionRequestSchema
+  );
