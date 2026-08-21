@@ -17,7 +17,9 @@ export const register = (data) =>
   );
 
 export const getUserData = () =>
-  axiosWrapper.get("/api/user");
+  axiosWrapper.get(
+    "/api/user"
+  );
 
 export const logout = () =>
   axiosWrapper.post(
@@ -25,25 +27,85 @@ export const logout = () =>
   );
 
 // ============================================================
-// SUBSCRIPTION
+// RESTAURANT
 // ============================================================
 
-export const createSubscriptionRequest =
+export const createRestaurant =
   (data) =>
     axiosWrapper.post(
-      "/api/subscription-request",
+      "/api/restaurant",
       data
     );
 
-export const getMySubscriptionRequests =
+export const getMyRestaurant =
   () =>
     axiosWrapper.get(
-      "/api/subscription-request/my"
+      "/api/restaurant/my"
+    );
+
+export const updateMyRestaurant =
+  (data) =>
+    axiosWrapper.patch(
+      "/api/restaurant/my",
+      data
+    );
+
+// ============================================================
+// STAFF
+// ============================================================
+
+export const createStaff =
+  (data) =>
+    axiosWrapper.post(
+      "/api/user/staff",
+      data
+    );
+
+export const getMyStaff =
+  () =>
+    axiosWrapper.get(
+      "/api/user/staff"
+    );
+
+export const updateStaff =
+  ({
+    staffId,
+    ...data
+  }) =>
+    axiosWrapper.patch(
+      `/api/user/staff/${staffId}`,
+      data
+    );
+
+export const deleteStaff =
+  (staffId) =>
+    axiosWrapper.delete(
+      `/api/user/staff/${staffId}`
     );
 
 // ============================================================
 // SUPER ADMIN
 // ============================================================
+
+export const getAllUsers =
+  () =>
+    axiosWrapper.get(
+      "/api/user/admin/users"
+    );
+
+export const updateUserSubscription =
+  ({
+    userId,
+    isActive,
+    expiryDate = null,
+  }) =>
+    axiosWrapper.patch(
+      `/api/user/admin/users/${userId}/subscription`,
+      {
+        isActive,
+        expiryDate,
+      }
+    );
 
 export const getAllSubscriptionRequests =
   () =>
@@ -65,150 +127,162 @@ export const reviewSubscriptionRequest =
       }
     );
 
-export const getAllUsers = () =>
-  axiosWrapper.get(
-    "/api/user/admin/users"
-  );
+// ============================================================
+// SUBSCRIPTION REQUEST
+// ============================================================
 
-export const updateUserSubscription =
-  ({
-    userId,
-    isActive,
-    expiryDate = null,
-  }) =>
-    axiosWrapper.patch(
-      `/api/user/admin/users/${userId}/subscription`,
-      {
-        isActive,
-        expiryDate,
-      }
+export const createSubscriptionRequest =
+  (data) =>
+    axiosWrapper.post(
+      "/api/subscription-request",
+      data
+    );
+
+export const getMySubscriptionRequests =
+  () =>
+    axiosWrapper.get(
+      "/api/subscription-request/my"
     );
 
 // ============================================================
 // TABLE
 // ============================================================
 
-export const addTable = (data) =>
-  axiosWrapper.post(
-    "/api/table/",
-    data
-  );
+export const addTable =
+  (data) =>
+    axiosWrapper.post(
+      "/api/table/",
+      data
+    );
 
-export const getTables = () =>
-  axiosWrapper.get(
-    "/api/table"
-  );
+export const getTables =
+  () =>
+    axiosWrapper.get(
+      "/api/table"
+    );
 
-export const updateTable = ({
-  tableId,
-  ...data
-}) =>
-  axiosWrapper.put(
-    `/api/table/${tableId}`,
-    data
-  );
+export const updateTable =
+  ({
+    tableId,
+    ...tableData
+  }) =>
+    axiosWrapper.put(
+      `/api/table/${tableId}`,
+      tableData
+    );
 
-export const deleteTable = (
-  tableId
-) =>
-  axiosWrapper.delete(
-    `/api/table/${tableId}`
-  );
+export const deleteTable =
+  (tableId) =>
+    axiosWrapper.delete(
+      `/api/table/${tableId}`
+    );
 
 // ============================================================
 // CATEGORY
 // ============================================================
 
-export const addCategory = (data) =>
-  axiosWrapper.post(
-    "/api/category/",
-    data
-  );
+export const addCategory =
+  (data) =>
+    axiosWrapper.post(
+      "/api/category/",
+      data
+    );
 
-export const getCategories = () =>
-  axiosWrapper.get(
-    "/api/category"
-  );
+export const getCategories =
+  () =>
+    axiosWrapper.get(
+      "/api/category"
+    );
 
-export const updateCategory = ({
-  categoryId,
-  ...data
-}) =>
-  axiosWrapper.put(
-    `/api/category/${categoryId}`,
-    data
-  );
+export const updateCategory =
+  ({
+    categoryId,
+    ...data
+  }) =>
+    axiosWrapper.put(
+      `/api/category/${categoryId}`,
+      data
+    );
 
-export const deleteCategory = (
-  categoryId
-) =>
-  axiosWrapper.delete(
-    `/api/category/${categoryId}`
-  );
+export const deleteCategory =
+  (categoryId) =>
+    axiosWrapper.delete(
+      `/api/category/${categoryId}`
+    );
 
 // ============================================================
 // DISH
 // ============================================================
 
-export const addDish = (data) =>
-  axiosWrapper.post(
-    "/api/dish/",
-    data
-  );
+export const addDish =
+  (data) =>
+    axiosWrapper.post(
+      "/api/dish/",
+      data
+    );
 
-export const getDishes = () =>
-  axiosWrapper.get(
-    "/api/dish"
-  );
+export const getDishes =
+  () =>
+    axiosWrapper.get(
+      "/api/dish"
+    );
 
-export const updateDish = ({
-  dishId,
-  ...data
-}) =>
-  axiosWrapper.put(
-    `/api/dish/${dishId}`,
-    data
-  );
+export const updateDish =
+  ({
+    dishId,
+    ...data
+  }) =>
+    axiosWrapper.put(
+      `/api/dish/${dishId}`,
+      data
+    );
 
-export const deleteDish = (
-  dishId
-) =>
-  axiosWrapper.delete(
-    `/api/dish/${dishId}`
-  );
+export const deleteDish =
+  (dishId) =>
+    axiosWrapper.delete(
+      `/api/dish/${dishId}`
+    );
 
 // ============================================================
 // ORDERS
 // ============================================================
 
-export const addOrder = (data) =>
-  axiosWrapper.post(
-    "/api/order/",
-    data
-  );
+export const addOrder =
+  (data) =>
+    axiosWrapper.post(
+      "/api/order/",
+      data
+    );
 
-export const addItemsToOrder = ({
-  orderId,
-  items,
-}) =>
-  axiosWrapper.put(
-    `/api/order/${orderId}/items`,
-    { items }
-  );
+export const addItemsToOrder =
+  ({
+    orderId,
+    items,
+  }) =>
+    axiosWrapper.put(
+      `/api/order/${orderId}/items`,
+      {
+        items,
+      }
+    );
 
-export const getOrders = () =>
-  axiosWrapper.get(
-    "/api/order"
-  );
+export const getOrders =
+  () =>
+    axiosWrapper.get(
+      "/api/order"
+    );
 
-export const updateOrderStatus = ({
-  orderId,
-  orderStatus,
-}) =>
-  axiosWrapper.put(
-    `/api/order/${orderId}`,
-    { orderStatus }
-  );
+export const updateOrderStatus =
+  ({
+    orderId,
+    orderStatus,
+  }) =>
+    axiosWrapper.put(
+      `/api/order/${orderId}`,
+      {
+        orderStatus,
+      }
+    );
 
 export const deleteCompletedOrders =
   () =>

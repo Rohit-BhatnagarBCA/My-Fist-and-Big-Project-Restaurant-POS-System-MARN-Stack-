@@ -6,9 +6,8 @@ const jwt = require("jsonwebtoken");
 const config = require("../config/config");
 
 // ======================================================
-// REGISTER
-// Public registration creates a RESTAURANT ADMIN account.
-// SuperAdmin / Waiter / Kitchen cannot be created here.
+// PUBLIC REGISTER
+// Creates only Restaurant Admin accounts.
 // ======================================================
 
 const register = async (
@@ -24,10 +23,6 @@ const register = async (
       email,
       password,
     } = req.body;
-
-    // --------------------------------------------------
-    // Required fields
-    // --------------------------------------------------
 
     if (
       !name ||
@@ -48,49 +43,20 @@ const register = async (
       String(name).trim();
 
     const cleanRestaurantName =
-      String(restaurantName).trim();
+      String(
+        restaurantName
+      ).trim();
 
-    const cleanEmail =
+    const normalizedEmail =
       String(email)
         .trim()
         .toLowerCase();
 
     const cleanPhone =
-      String(phone).replace(/\D/g, "");
-
-    // --------------------------------------------------
-    // Validation
-    // --------------------------------------------------
-
-    if (!cleanName) {
-      return next(
-        createHttpError(
-          400,
-          "Name is required!"
-        )
+      String(phone).replace(
+        /\D/g,
+        ""
       );
-    }
-
-    if (!cleanRestaurantName) {
-      return next(
-        createHttpError(
-          400,
-          "Restaurant name is required!"
-        )
-      );
-    }
-
-    if (
-      cleanRestaurantName.length >
-      120
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Restaurant name cannot exceed 120 characters!"
-        )
-      );
-    }
 
     if (
       !/^\d{10}$/.test(
@@ -107,7 +73,7 @@ const register = async (
 
     if (
       !/\S+@\S+\.\S+/.test(
-        cleanEmail
+        normalizedEmail
       )
     ) {
       return next(
@@ -118,13 +84,9 @@ const register = async (
       );
     }
 
-    // --------------------------------------------------
-    // Check existing account
-    // --------------------------------------------------
-
     const existingUser =
       await User.findOne({
-        email: cleanEmail,
+        email: normalizedEmail,
       });
 
     if (existingUser) {
@@ -136,54 +98,48 @@ const register = async (
       );
     }
 
-    // ==================================================
-    // CREATE ADMIN USER
-    // Role is NOT taken from frontend.
-    // Public registration is always Admin.
-    // ==================================================
-
     const user =
       new User({
         name: cleanName,
         phone: cleanPhone,
-        email: cleanEmail,
+        email: normalizedEmail,
         password,
         role: "Admin",
       });
 
     await user.save();
 
-    // ==================================================
-    // CREATE RESTAURANT
-    // ==================================================
-
     let restaurant;
 
     try {
       restaurant =
         await Restaurant.create({
-          name: cleanRestaurantName,
+          name:
+            cleanRestaurantName,
           owner: user._id,
           status: "pending",
         });
-    } catch (restaurantError) {
+    } catch (error) {
       await User.findByIdAndDelete(
         user._id
       );
 
-      throw restaurantError;
+      throw error;
     }
 
-    // ==================================================
-    // LINK USER -> RESTAURANT
-    // ==================================================
-
     try {
-      user.restaurantId =
-        restaurant._id;
-
-      await user.save();
-    } catch (userUpdateError) {
+      await User.updateOne(
+        {
+          _id: user._id,
+        },
+        {
+          $set: {
+            restaurantId:
+              restaurant._id,
+          },
+        }
+      );
+    } catch (error) {
       await Restaurant.findByIdAndDelete(
         restaurant._id
       );
@@ -192,12 +148,8 @@ const register = async (
         user._id
       );
 
-      throw userUpdateError;
+      throw error;
     }
-
-    // --------------------------------------------------
-    // Safe response
-    // --------------------------------------------------
 
     const safeUser =
       await User.findById(
@@ -270,7 +222,8 @@ const login = async (
       null;
 
     for (
-      const candidate of usersWithEmail
+      const candidate of
+      usersWithEmail
     ) {
       const isMatch =
         await bcrypt.compare(
@@ -399,6 +352,517 @@ const logout = async (
 };
 
 // ======================================================
+// ADMIN — CREATE STAFF
+// Waiter / Kitchen only
+// ======================================================
+
+const createStaff = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    if (
+      !req.user?.restaurantId
+    ) {
+      return next(
+        createHttpError(
+          403,
+          "Your account is not linked to a restaurant."
+        )
+      );
+    }
+
+    if (
+      req.user.role !==
+      "Admin"
+    ) {
+      return next(
+        createHttpError(
+          403,
+          "Only restaurant Admins can manage staff."
+        )
+      );
+    }
+
+    const {
+      name,
+      email,
+      phone,
+      password,
+      role,
+    } = req.body;
+
+    if (
+      !name ||
+      !email ||
+      !phone ||
+      !password ||
+      !role
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "All staff fields are required."
+        )
+      );
+    }
+
+    if (
+      !["Waiter", "Kitchen"].includes(
+        role
+      )
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Staff role must be Waiter or Kitchen."
+        )
+      );
+    }
+
+    const cleanName =
+      String(name).trim();
+
+    const normalizedEmail =
+      String(email)
+        .trim()
+        .toLowerCase();
+
+    const cleanPhone =
+      String(phone).replace(
+        /\D/g,
+        ""
+      );
+
+    if (
+      !/^\d{10}$/.test(
+        cleanPhone
+      )
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Phone number must be exactly 10 digits."
+        )
+      );
+    }
+
+    if (
+      !/\S+@\S+\.\S+/.test(
+        normalizedEmail
+      )
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Please provide a valid email address."
+        )
+      );
+    }
+
+    const existingUser =
+      await User.findOne({
+        email: normalizedEmail,
+      });
+
+    if (existingUser) {
+      return next(
+        createHttpError(
+          400,
+          "An account with this email already exists."
+        )
+      );
+    }
+
+    const staff =
+      new User({
+        name: cleanName,
+        email: normalizedEmail,
+        phone: cleanPhone,
+        password,
+        role,
+        restaurantId:
+          req.user.restaurantId,
+      });
+
+    await staff.save();
+
+    staff.password =
+      undefined;
+
+    return res.status(201).json({
+      success: true,
+      message:
+        `${role} account created successfully.`,
+      data: staff,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ======================================================
+// ADMIN — GET MY STAFF
+// ======================================================
+
+const getMyStaff = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    if (
+      !req.user?.restaurantId
+    ) {
+      return next(
+        createHttpError(
+          403,
+          "Your account is not linked to a restaurant."
+        )
+      );
+    }
+
+    if (
+      req.user.role !==
+      "Admin"
+    ) {
+      return next(
+        createHttpError(
+          403,
+          "Only restaurant Admins can view staff."
+        )
+      );
+    }
+
+    const staff =
+      await User.find({
+        restaurantId:
+          req.user.restaurantId,
+        role: {
+          $in: [
+            "Waiter",
+            "Kitchen",
+          ],
+        },
+      })
+        .select(
+          "-password"
+        )
+        .sort({
+          createdAt: -1,
+        });
+
+    const counts = {
+      total: staff.length,
+
+      waiter: staff.filter(
+        (user) =>
+          user.role ===
+          "Waiter"
+      ).length,
+
+      kitchen: staff.filter(
+        (user) =>
+          user.role ===
+          "Kitchen"
+      ).length,
+    };
+
+    return res.status(200).json({
+      success: true,
+      counts,
+      data: staff,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ======================================================
+// ADMIN — UPDATE STAFF
+// Can change name, phone, role.
+// Password update is intentionally separate.
+// ======================================================
+
+const updateStaff = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    if (
+      !req.user?.restaurantId
+    ) {
+      return next(
+        createHttpError(
+          403,
+          "Your account is not linked to a restaurant."
+        )
+      );
+    }
+
+    if (
+      req.user.role !==
+      "Admin"
+    ) {
+      return next(
+        createHttpError(
+          403,
+          "Only restaurant Admins can update staff."
+        )
+      );
+    }
+
+    const { id } =
+      req.params;
+
+    const {
+      name,
+      phone,
+      role,
+    } = req.body;
+
+    if (
+      !id ||
+      !id.match(
+        /^[0-9a-fA-F]{24}$/
+      )
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Invalid staff ID."
+        )
+      );
+    }
+
+    if (
+      role !== undefined &&
+      !["Waiter", "Kitchen"].includes(
+        role
+      )
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Staff role must be Waiter or Kitchen."
+        )
+      );
+    }
+
+    const staff =
+      await User.findOne({
+        _id: id,
+        restaurantId:
+          req.user.restaurantId,
+        role: {
+          $in: [
+            "Waiter",
+            "Kitchen",
+          ],
+        },
+      });
+
+    if (!staff) {
+      return next(
+        createHttpError(
+          404,
+          "Staff member not found in your restaurant."
+        )
+      );
+    }
+
+    const updates = {};
+
+    if (
+      name !== undefined
+    ) {
+      const cleanName =
+        String(name).trim();
+
+      if (!cleanName) {
+        return next(
+          createHttpError(
+            400,
+            "Name cannot be empty."
+          )
+        );
+      }
+
+      updates.name =
+        cleanName;
+    }
+
+    if (
+      phone !== undefined
+    ) {
+      const cleanPhone =
+        String(phone).replace(
+          /\D/g,
+          ""
+        );
+
+      if (
+        !/^\d{10}$/.test(
+          cleanPhone
+        )
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Phone number must be exactly 10 digits."
+          )
+        );
+      }
+
+      updates.phone =
+        cleanPhone;
+    }
+
+    if (
+      role !== undefined
+    ) {
+      updates.role =
+        role;
+    }
+
+    if (
+      Object.keys(updates)
+        .length === 0
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "No changes provided."
+        )
+      );
+    }
+
+    const updatedStaff =
+      await User.findOneAndUpdate(
+        {
+          _id: id,
+          restaurantId:
+            req.user.restaurantId,
+          role: {
+            $in: [
+              "Waiter",
+              "Kitchen",
+            ],
+          },
+        },
+        {
+          $set: updates,
+        },
+        {
+          new: true,
+          runValidators: true,
+        }
+      ).select(
+        "-password"
+      );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Staff updated successfully.",
+      data: updatedStaff,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ======================================================
+// ADMIN — DELETE STAFF
+// ======================================================
+
+const deleteStaff = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    if (
+      !req.user?.restaurantId
+    ) {
+      return next(
+        createHttpError(
+          403,
+          "Your account is not linked to a restaurant."
+        )
+      );
+    }
+
+    if (
+      req.user.role !==
+      "Admin"
+    ) {
+      return next(
+        createHttpError(
+          403,
+          "Only restaurant Admins can remove staff."
+        )
+      );
+    }
+
+    const { id } =
+      req.params;
+
+    if (
+      !id ||
+      !id.match(
+        /^[0-9a-fA-F]{24}$/
+      )
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Invalid staff ID."
+        )
+      );
+    }
+
+    const staff =
+      await User.findOne({
+        _id: id,
+        restaurantId:
+          req.user.restaurantId,
+        role: {
+          $in: [
+            "Waiter",
+            "Kitchen",
+          ],
+        },
+      });
+
+    if (!staff) {
+      return next(
+        createHttpError(
+          404,
+          "Staff member not found in your restaurant."
+        )
+      );
+    }
+
+    await User.deleteOne({
+      _id: id,
+      restaurantId:
+        req.user.restaurantId,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Staff account removed successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ======================================================
 // SUPER ADMIN — GET ALL USERS
 // ======================================================
 
@@ -421,8 +885,7 @@ const getAllUsers = async (
 
     return res.status(200).json({
       success: true,
-      count:
-        users.length,
+      count: users.length,
       data: users,
     });
   } catch (error) {
@@ -477,9 +940,7 @@ const updateUserSubscription =
       }
 
       const user =
-        await User.findById(
-          id
-        );
+        await User.findById(id);
 
       if (!user) {
         return next(
@@ -526,10 +987,7 @@ const updateUserSubscription =
               : user.subscription ||
                 {}
           ),
-
-          startDate:
-            null,
-
+          startDate: null,
           expiryDate:
             new Date(0),
         };
@@ -598,12 +1056,10 @@ const updateUserSubscription =
             : user.subscription ||
               {}
         ),
-
         startDate:
           user.subscription
             ?.startDate ||
           new Date(),
-
         expiryDate:
           newExpiryDate,
       };
@@ -631,6 +1087,12 @@ module.exports = {
   login,
   getUserData,
   logout,
+
+  createStaff,
+  getMyStaff,
+  updateStaff,
+  deleteStaff,
+
   getAllUsers,
   updateUserSubscription,
 };

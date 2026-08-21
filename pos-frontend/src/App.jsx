@@ -16,11 +16,14 @@ import {
   Dashboard,
   Subscription,
   SuperAdmin,
+  Staff,
 } from "./pages";
 
 import Header from "./components/shared/Header";
 import NotificationListener from "./components/shared/NotificationListener";
+
 import { useSelector } from "react-redux";
+
 import useLoadData from "./hooks/useLoadData";
 import FullScreenLoader from "./components/shared/FullScreenLoader";
 
@@ -47,11 +50,12 @@ function Layout() {
     <>
       <NotificationListener />
 
-      {!hideHeaderRoutes.includes(location.pathname) && (
-        <Header />
-      )}
+      {!hideHeaderRoutes.includes(
+        location.pathname
+      ) && <Header />}
 
       <Routes>
+
         {/* =====================================================
             HOME
            ===================================================== */}
@@ -73,7 +77,10 @@ function Layout() {
           path="/auth"
           element={
             isAuth ? (
-              <Navigate to="/" replace />
+              <Navigate
+                to="/"
+                replace
+              />
             ) : (
               <Auth />
             )
@@ -91,8 +98,6 @@ function Layout() {
 
         {/* =====================================================
             SUBSCRIPTION
-            Login required.
-            Subscription NOT required.
            ===================================================== */}
 
         <Route
@@ -138,7 +143,9 @@ function Layout() {
           path="/tables"
           element={
             <ProtectedRoutes
-              blockRoles={["Kitchen"]}
+              blockRoles={[
+                "Kitchen",
+              ]}
             >
               <Tables />
             </ProtectedRoutes>
@@ -153,7 +160,9 @@ function Layout() {
           path="/menu"
           element={
             <ProtectedRoutes
-              blockRoles={["Kitchen"]}
+              blockRoles={[
+                "Kitchen",
+              ]}
             >
               <Menu />
             </ProtectedRoutes>
@@ -179,6 +188,29 @@ function Layout() {
         />
 
         {/* =====================================================
+            STAFF MANAGEMENT
+            Only Restaurant Admin
+           ===================================================== */}
+
+        <Route
+          path="/staff"
+          element={
+            <ProtectedRoutes
+              blockRoles={[
+                "Kitchen",
+                "Waiter",
+                "SuperAdmin",
+              ]}
+              allowedRoles={[
+                "Admin",
+              ]}
+            >
+              <Staff />
+            </ProtectedRoutes>
+          }
+        />
+
+        {/* =====================================================
             FALLBACK
            ===================================================== */}
 
@@ -190,21 +222,24 @@ function Layout() {
             </div>
           }
         />
+
       </Routes>
     </>
   );
 }
 
 // =============================================================
-// AUTH ONLY
+// AUTH ONLY ROUTE
+// Login required, subscription not required
 // =============================================================
 
 function AuthOnlyRoute({
   children,
 }) {
-  const { isAuth } = useSelector(
-    (state) => state.user
-  );
+  const { isAuth } =
+    useSelector(
+      (state) => state.user
+    );
 
   if (!isAuth) {
     return (
@@ -241,7 +276,9 @@ function SuperAdminRoute({
     );
   }
 
-  if (role !== "SuperAdmin") {
+  if (
+    role !== "SuperAdmin"
+  ) {
     return (
       <Navigate
         to="/"
@@ -259,7 +296,8 @@ function SuperAdminRoute({
 
 function ProtectedRoutes({
   children,
-  blockRoles,
+  blockRoles = [],
+  allowedRoles = null,
 }) {
   const {
     isAuth,
@@ -270,7 +308,7 @@ function ProtectedRoutes({
   );
 
   // -----------------------------------------------------------
-  // Login
+  // Authentication
   // -----------------------------------------------------------
 
   if (!isAuth) {
@@ -283,10 +321,12 @@ function ProtectedRoutes({
   }
 
   // -----------------------------------------------------------
-  // Super Admin gets its own panel, not restaurant POS routes.
+  // SuperAdmin gets separate panel
   // -----------------------------------------------------------
 
-  if (role === "SuperAdmin") {
+  if (
+    role === "SuperAdmin"
+  ) {
     return (
       <Navigate
         to="/super-admin"
@@ -296,12 +336,31 @@ function ProtectedRoutes({
   }
 
   // -----------------------------------------------------------
-  // Role restriction
+  // Allowed roles
   // -----------------------------------------------------------
 
   if (
-    blockRoles &&
-    blockRoles.includes(role)
+    allowedRoles &&
+    !allowedRoles.includes(
+      role
+    )
+  ) {
+    return (
+      <Navigate
+        to="/"
+        replace
+      />
+    );
+  }
+
+  // -----------------------------------------------------------
+  // Blocked roles
+  // -----------------------------------------------------------
+
+  if (
+    blockRoles.includes(
+      role
+    )
   ) {
     return (
       <Navigate
@@ -315,13 +374,15 @@ function ProtectedRoutes({
   // Subscription
   // -----------------------------------------------------------
 
-  const linkedStaff = Boolean(
-    subscription?.linkedAdminEmail
-  );
+  const linkedStaff =
+    Boolean(
+      subscription?.linkedAdminEmail
+    );
 
-  const hasStartDate = Boolean(
-    subscription?.startDate
-  );
+  const hasStartDate =
+    Boolean(
+      subscription?.startDate
+    );
 
   const expiryDate =
     subscription?.expiryDate
@@ -332,7 +393,8 @@ function ProtectedRoutes({
 
   const notExpired =
     !expiryDate ||
-    expiryDate >= new Date();
+    expiryDate >=
+      new Date();
 
   const hasSubscription =
     linkedStaff ||
@@ -343,7 +405,9 @@ function ProtectedRoutes({
   // No subscription
   // -----------------------------------------------------------
 
-  if (!hasSubscription) {
+  if (
+    !hasSubscription
+  ) {
     return (
       <Navigate
         to="/about"
@@ -354,6 +418,10 @@ function ProtectedRoutes({
 
   return children;
 }
+
+// =============================================================
+// APP
+// =============================================================
 
 function App() {
   return (

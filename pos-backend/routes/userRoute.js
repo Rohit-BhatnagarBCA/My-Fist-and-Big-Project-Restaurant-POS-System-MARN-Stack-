@@ -5,18 +5,29 @@ const {
   login,
   getUserData,
   logout,
+
+  createStaff,
+  getMyStaff,
+  updateStaff,
+  deleteStaff,
+
   getAllUsers,
   updateUserSubscription,
 } = require("../controllers/userController");
 
 const {
   isVerifiedUser,
+  isAdmin,
   isSuperAdmin,
 } = require("../middlewares/tokenVerification");
 
-const router = express.Router();
+const router =
+  express.Router();
 
-// Authentication
+// ============================================================
+// AUTHENTICATION
+// ============================================================
+
 router.post(
   "/register",
   register
@@ -33,14 +44,52 @@ router.post(
   logout
 );
 
-// Current User
+// ============================================================
+// CURRENT USER
+// ============================================================
+
 router.get(
   "/",
   isVerifiedUser,
   getUserData
 );
 
-// Super Admin - all users
+// ============================================================
+// RESTAURANT ADMIN — STAFF
+// ============================================================
+
+router.post(
+  "/staff",
+  isVerifiedUser,
+  isAdmin,
+  createStaff
+);
+
+router.get(
+  "/staff",
+  isVerifiedUser,
+  isAdmin,
+  getMyStaff
+);
+
+router.patch(
+  "/staff/:id",
+  isVerifiedUser,
+  isAdmin,
+  updateStaff
+);
+
+router.delete(
+  "/staff/:id",
+  isVerifiedUser,
+  isAdmin,
+  deleteStaff
+);
+
+// ============================================================
+// SUPER ADMIN
+// ============================================================
+
 router.get(
   "/admin/users",
   isVerifiedUser,
@@ -48,7 +97,6 @@ router.get(
   getAllUsers
 );
 
-// Super Admin - manual subscription
 router.patch(
   "/admin/users/:id/subscription",
   isVerifiedUser,
