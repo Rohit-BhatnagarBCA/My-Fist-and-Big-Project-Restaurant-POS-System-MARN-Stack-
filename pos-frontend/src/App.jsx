@@ -325,7 +325,6 @@ function ProtectedRoutes({
   const {
     isAuth,
     role,
-    subscription,
     restaurant,
   } = useSelector(
     (state) => state.user
@@ -383,65 +382,21 @@ function ProtectedRoutes({
   }
 
   // -----------------------------------------------------------
-  // Restaurant status
+  // Restaurant status — SINGLE SOURCE OF TRUTH.
+  //
+  // The restaurant's own status already reflects its
+  // subscription (active / pending / suspended / expired).
+  // This applies equally to Admins AND their Waiter/Kitchen
+  // staff, since staff share the same restaurantId.
+  //
+  // We intentionally do NOT look at any per-user subscription
+  // field here — that used to cause staff accounts to get
+  // locked out even when the restaurant itself was active.
   // -----------------------------------------------------------
 
   if (
-    restaurant?.status ===
-      "suspended" ||
-    restaurant?.status ===
-      "expired"
-  ) {
-    return (
-      <Navigate
-        to="/about"
-        replace
-      />
-    );
-  }
-
-  // -----------------------------------------------------------
-  // Subscription
-  // -----------------------------------------------------------
-
-  const linkedStaff =
-    Boolean(
-      subscription?.linkedAdminEmail
-    );
-
-  const startDate =
-    subscription?.startDate
-      ? new Date(
-          subscription.startDate
-        )
-      : null;
-
-  const expiryDate =
-    subscription?.expiryDate
-      ? new Date(
-          subscription.expiryDate
-        )
-      : null;
-
-  const now =
-    new Date();
-
-  const activeByDates =
-    startDate &&
-    expiryDate &&
-    now >=
-      startDate &&
-    now <
-      expiryDate;
-
-  const hasSubscription =
-    linkedStaff ||
-    Boolean(
-      activeByDates
-    );
-
-  if (
-    !hasSubscription
+    restaurant?.status !==
+    "active"
   ) {
     return (
       <Navigate

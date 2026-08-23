@@ -95,6 +95,11 @@ const subscriptionRequestSchema =
         default: null,
       },
 
+      subscriptionStart: {
+        type: Date,
+        default: null,
+      },
+
       subscriptionExpiry: {
         type: Date,
         default: null,
@@ -104,6 +109,11 @@ const subscriptionRequestSchema =
       timestamps: true,
     }
   );
+
+subscriptionRequestSchema.index({
+  restaurantId: 1,
+  status: 1,
+});
 
 module.exports =
   mongoose.model(

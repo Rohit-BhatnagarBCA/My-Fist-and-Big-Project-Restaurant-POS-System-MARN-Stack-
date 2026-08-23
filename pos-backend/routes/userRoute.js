@@ -30,7 +30,7 @@ const router =
   express.Router();
 
 // ============================================================
-// AUTH
+// AUTHENTICATION
 // ============================================================
 
 router.post(
@@ -59,7 +59,11 @@ router.get(
   getUserData
 );
 
-// Profile works WITHOUT subscription.
+// ============================================================
+// MY PROFILE
+// Works without subscription.
+// ============================================================
+
 router.get(
   "/profile",
   isVerifiedUser,
@@ -79,7 +83,7 @@ router.patch(
 );
 
 // ============================================================
-// STAFF
+// RESTAURANT ADMIN — STAFF
 // ============================================================
 
 router.post(
@@ -128,5 +132,4 @@ router.patch(
   updateUserSubscription
 );
 
-module.exports =
-  router;
+module.exports = router;

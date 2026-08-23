@@ -16,11 +16,15 @@ const {
 } = require("../config/pricing");
 
 // ============================================================
-// CREATE REQUEST
+// CREATE SUBSCRIPTION REQUEST
 // ============================================================
 
 const createSubscriptionRequest =
-  async (req, res, next) => {
+  async (
+    req,
+    res,
+    next
+  ) => {
     try {
       if (!req.user?._id) {
         return next(
@@ -51,7 +55,9 @@ const createSubscriptionRequest =
         );
       }
 
-      if (!BUSINESS_PLANS[plan]) {
+      if (
+        !BUSINESS_PLANS[plan]
+      ) {
         return next(
           createHttpError(
             400,
@@ -61,7 +67,8 @@ const createSubscriptionRequest =
       }
 
       if (
-        !BUSINESS_PLANS[plan].prices?.[duration]
+        !BUSINESS_PLANS[plan]
+          .prices?.[duration]
       ) {
         return next(
           createHttpError(
@@ -85,7 +92,10 @@ const createSubscriptionRequest =
         );
       }
 
-      if (user.role !== "Admin") {
+      if (
+        user.role !==
+        "Admin"
+      ) {
         return next(
           createHttpError(
             403,
@@ -94,7 +104,9 @@ const createSubscriptionRequest =
         );
       }
 
-      if (!user.restaurantId) {
+      if (
+        !user.restaurantId
+      ) {
         return next(
           createHttpError(
             403,
@@ -117,12 +129,16 @@ const createSubscriptionRequest =
         );
       }
 
+      // One pending request per restaurant.
       const pendingRequest =
-        await SubscriptionRequest.findOne({
-          restaurantId:
-            restaurant._id,
-          status: "Pending",
-        });
+        await SubscriptionRequest.findOne(
+          {
+            restaurantId:
+              restaurant._id,
+            status:
+              "Pending",
+          }
+        );
 
       if (pendingRequest) {
         return next(
@@ -138,40 +154,51 @@ const createSubscriptionRequest =
           role: "Admin",
           plan,
           duration,
-          isLinkedToAdmin: false,
+          isLinkedToAdmin:
+            false,
         });
 
       const request =
-        await SubscriptionRequest.create({
-          restaurantId:
-            restaurant._id,
+        await SubscriptionRequest.create(
+          {
+            restaurantId:
+              restaurant._id,
 
-          user: user._id,
+            user:
+              user._id,
 
-          name: user.name,
+            name:
+              user.name,
 
-          email: user.email,
+            email:
+              user.email,
 
-          plan,
+            plan,
 
-          duration,
+            duration,
 
-          amount,
+            amount,
 
-          paymentReference:
-            paymentReference.trim(),
+            paymentReference:
+              paymentReference.trim(),
 
-          paymentNote:
-            paymentNote?.trim() || "",
+            paymentNote:
+              paymentNote?.trim() ||
+              "",
 
-          status: "Pending",
-        });
+            status:
+              "Pending",
+          }
+        );
 
       return res.status(201).json({
         success: true,
+
         message:
-          "Subscription request submitted successfully.",
-        data: request,
+          "Subscription request submitted successfully. Waiting for Super Admin approval.",
+
+        data:
+          request,
       });
     } catch (error) {
       next(error);
@@ -179,11 +206,15 @@ const createSubscriptionRequest =
   };
 
 // ============================================================
-// MY REQUESTS
+// GET MY REQUESTS
 // ============================================================
 
 const getMySubscriptionRequests =
-  async (req, res, next) => {
+  async (
+    req,
+    res,
+    next
+  ) => {
     try {
       if (!req.user?._id) {
         return next(
@@ -208,7 +239,9 @@ const getMySubscriptionRequests =
         );
       }
 
-      if (!user.restaurantId) {
+      if (
+        !user.restaurantId
+      ) {
         return res.status(200).json({
           success: true,
           data: [],
@@ -216,18 +249,23 @@ const getMySubscriptionRequests =
       }
 
       const requests =
-        await SubscriptionRequest.find({
-          restaurantId:
-            user.restaurantId,
-        })
+        await SubscriptionRequest.find(
+          {
+            restaurantId:
+              user.restaurantId,
+          }
+        )
           .sort({
             createdAt: -1,
           })
-          .select("-__v");
+          .select(
+            "-__v"
+          );
 
       return res.status(200).json({
         success: true,
-        data: requests,
+        data:
+          requests,
       });
     } catch (error) {
       next(error);
@@ -239,7 +277,11 @@ const getMySubscriptionRequests =
 // ============================================================
 
 const getAllSubscriptionRequests =
-  async (req, res, next) => {
+  async (
+    req,
+    res,
+    next
+  ) => {
     try {
       if (
         req.user?.role !==
@@ -270,11 +312,14 @@ const getAllSubscriptionRequests =
           .sort({
             createdAt: -1,
           })
-          .select("-__v");
+          .select(
+            "-__v"
+          );
 
       return res.status(200).json({
         success: true,
-        data: requests,
+        data:
+          requests,
       });
     } catch (error) {
       next(error);
@@ -282,17 +327,15 @@ const getAllSubscriptionRequests =
   };
 
 // ============================================================
-// SUPER ADMIN — REVIEW
-//
-// APPROVED request now needs:
-// startDate
-// startTime
-// expiryDate
-// expiryTime
+// SUPER ADMIN — APPROVE / REJECT
 // ============================================================
 
 const reviewSubscriptionRequest =
-  async (req, res, next) => {
+  async (
+    req,
+    res,
+    next
+  ) => {
     try {
       if (
         req.user?.role !==
@@ -306,8 +349,9 @@ const reviewSubscriptionRequest =
         );
       }
 
-      const { id } =
-        req.params;
+      const {
+        id,
+      } = req.params;
 
       const {
         status,
@@ -334,9 +378,10 @@ const reviewSubscriptionRequest =
       }
 
       if (
-        !["Approved", "Rejected"].includes(
-          status
-        )
+        ![
+          "Approved",
+          "Rejected",
+        ].includes(status)
       ) {
         return next(
           createHttpError(
@@ -400,12 +445,13 @@ const reviewSubscriptionRequest =
         );
       }
 
-      // ======================================================
+      // --------------------------------------------------------
       // REJECT
-      // ======================================================
+      // --------------------------------------------------------
 
       if (
-        status === "Rejected"
+        status ===
+        "Rejected"
       ) {
         request.status =
           "Rejected";
@@ -424,15 +470,18 @@ const reviewSubscriptionRequest =
 
         return res.status(200).json({
           success: true,
+
           message:
             "Subscription request rejected.",
-          data: request,
+
+          data:
+            request,
         });
       }
 
-      // ======================================================
-      // APPROVE VALIDATION
-      // ======================================================
+      // --------------------------------------------------------
+      // APPROVE
+      // --------------------------------------------------------
 
       if (
         !startDate ||
@@ -469,7 +518,7 @@ const reviewSubscriptionRequest =
         return next(
           createHttpError(
             400,
-            "Invalid subscription date or time."
+            "Invalid subscription date/time."
           )
         );
       }
@@ -481,7 +530,7 @@ const reviewSubscriptionRequest =
         return next(
           createHttpError(
             400,
-            "Expiry must be later than start time."
+            "Expiry must be later than start."
           )
         );
       }
@@ -489,15 +538,21 @@ const reviewSubscriptionRequest =
       const expectedAmount =
         calculateAmount({
           role: "Admin",
-          plan: request.plan,
+          plan:
+            request.plan,
           duration:
             request.duration,
-          isLinkedToAdmin: false,
+          isLinkedToAdmin:
+            false,
         });
 
       if (
-        Number(request.amount) !==
-        Number(expectedAmount)
+        Number(
+          request.amount
+        ) !==
+        Number(
+          expectedAmount
+        )
       ) {
         return next(
           createHttpError(
@@ -506,10 +561,6 @@ const reviewSubscriptionRequest =
           )
         );
       }
-
-      // ======================================================
-      // DETERMINE INITIAL STATUS
-      // ======================================================
 
       const now =
         new Date();
@@ -523,16 +574,18 @@ const reviewSubscriptionRequest =
       ) {
         restaurantStatus =
           "active";
-      } else if (
+      }
+
+      if (
         now >= parsedExpiry
       ) {
         restaurantStatus =
           "expired";
       }
 
-      // ======================================================
+      // --------------------------------------------------------
       // RESTAURANT = SOURCE OF TRUTH
-      // ======================================================
+      // --------------------------------------------------------
 
       const updatedRestaurant =
         await Restaurant.findByIdAndUpdate(
@@ -566,13 +619,17 @@ const reviewSubscriptionRequest =
           }
         );
 
-      // ======================================================
+      // --------------------------------------------------------
       // USER SUBSCRIPTION MIRROR
-      // ======================================================
+      //
+      // updateOne intentionally avoids re-validating old legacy
+      // phone numbers in existing accounts.
+      // --------------------------------------------------------
 
       await User.updateOne(
         {
-          _id: user._id,
+          _id:
+            user._id,
         },
         {
           $set: {
@@ -602,10 +659,6 @@ const reviewSubscriptionRequest =
         }
       );
 
-      // ======================================================
-      // UPDATE REQUEST
-      // ======================================================
-
       request.status =
         "Approved";
 
@@ -614,6 +667,9 @@ const reviewSubscriptionRequest =
 
       request.reviewedBy =
         req.user._id;
+
+      request.subscriptionStart =
+        parsedStart;
 
       request.subscriptionExpiry =
         parsedExpiry;
@@ -625,12 +681,16 @@ const reviewSubscriptionRequest =
 
       return res.status(200).json({
         success: true,
+
         message:
-          "Restaurant subscription activated successfully.",
+          "Restaurant subscription approved successfully.",
+
         data: {
           request,
+
           restaurant:
             updatedRestaurant,
+
           userId:
             user._id,
         },

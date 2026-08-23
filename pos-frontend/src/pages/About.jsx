@@ -22,17 +22,14 @@ import {
   FiCheck,
   FiZap,
   FiTrendingUp,
-  FiLayers,
   FiPlusCircle,
   FiAlertTriangle,
-  FiUsers,
-  FiPieChart,
-  FiGrid,
   FiLogOut,
+  FiUsers,
+  FiActivity,
 } from "react-icons/fi";
 
 import {
-  MdOutlineTakeoutDining,
   MdTableBar,
   MdOutlineReceiptLong,
 } from "react-icons/md";
@@ -65,7 +62,10 @@ const labelFont =
 const bodyFont =
   "font-['Manrope',_sans-serif]";
 
-// 🌟 Features directly matching your EXACT architecture!
+// ============================================================
+// FEATURES
+// ============================================================
+
 const repoFeatures = [
   {
     icon: FiPlusCircle,
@@ -75,6 +75,7 @@ const repoFeatures = [
     text:
       "Admin gets full control to dynamically add/edit menu items, categories, pricing, and create new table layouts on the fly.",
   },
+
   {
     icon: FiAlertTriangle,
     badge: "KITCHEN SYNC",
@@ -83,6 +84,7 @@ const repoFeatures = [
     text:
       "Food items running out? Kitchen staff can update quantities or lock items instantly, stopping Waiters from taking unavailable orders.",
   },
+
   {
     icon: MdTableBar,
     badge: "MULTI-ROLE ORDERING",
@@ -91,6 +93,7 @@ const repoFeatures = [
     text:
       "Waiters and Admins can both punch orders directly to assigned tables with real-time status updates across all connected devices.",
   },
+
   {
     icon: BiSolidDish,
     badge: "KITCHEN PASS",
@@ -99,23 +102,29 @@ const repoFeatures = [
     text:
       "Dedicated KOT screen with instant audio notifications as soon as an order is fired by the waiter or admin.",
   },
+
   {
     icon: FiTrendingUp,
     badge: "ANALYTICS",
     title:
       "Top-Selling Dishes & Sales Insights",
     text:
-      "Calculates total order metrics to highlight your best-selling items, peak operational hours, and real-time revenue breakdowns.",
+      "Calculates total order metrics to highlight your best-selling items, peak operational hours, and real-time sales breakdowns.",
   },
+
   {
     icon: MdOutlineReceiptLong,
-    badge: "BILLING & GST",
+    badge: "BILLING",
     title:
       "Thermal Bills & GST Ready",
     text:
       "One-click split payments, discount application, cash/online tags, and direct thermal printer output.",
   },
 ];
+
+// ============================================================
+// TECH STACK
+// ============================================================
 
 const techStack = [
   "MongoDB",
@@ -127,21 +136,33 @@ const techStack = [
   "Tailwind CSS",
 ];
 
+// ============================================================
+// ABOUT PAGE
+// ============================================================
+
 const About = () => {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const dispatch = useDispatch();
+  const dispatch =
+    useDispatch();
 
-  const userData = useSelector(
-    (state) => state.user
-  );
+  const userData =
+    useSelector(
+      (state) => state.user
+    );
 
   const [duration, setDuration] =
     useState("Monthly");
 
+  // ==========================================================
+  // LOGOUT
+  // ==========================================================
+
   const logoutMutation =
     useMutation({
-      mutationFn: () => logout(),
+      mutationFn: () =>
+        logout(),
 
       onSuccess: () => {
         dispatch(
@@ -156,15 +177,9 @@ const About = () => {
         );
       },
 
-      onError: (error) => {
-        console.error(
-          "Logout error:",
-          error
-        );
-
-        // Even if the server logout request fails,
-        // clear local auth state so the user isn't
-        // trapped inside the application.
+      onError: () => {
+        // Even if backend logout
+        // fails, clear frontend auth.
         dispatch(
           removeUser()
         );
@@ -178,15 +193,43 @@ const About = () => {
       },
     });
 
-  const handleLogout = () => {
-    if (
-      logoutMutation.isPending
-    ) {
-      return;
-    }
+  const handleLogout =
+    () => {
+      if (
+        logoutMutation.isPending
+      ) {
+        return;
+      }
 
-    logoutMutation.mutate();
-  };
+      logoutMutation.mutate();
+    };
+
+  // ==========================================================
+  // GET STARTED
+  //
+  // Logged in:
+  //      -> /subscription
+  //
+  // Logged out:
+  //      -> /auth
+  // ==========================================================
+
+  const handleGetStarted =
+    () => {
+      if (
+        userData?.isAuth
+      ) {
+        navigate(
+          "/subscription"
+        );
+
+        return;
+      }
+
+      navigate(
+        "/auth"
+      );
+    };
 
   return (
     <div
@@ -194,7 +237,7 @@ const About = () => {
     >
 
       {/* =====================================================
-          BACKGROUND GLOW EFFECTS
+          BACKGROUND GLOW
          ===================================================== */}
 
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-[#BD5D31]/15 blur-[140px] pointer-events-none rounded-full" />
@@ -202,12 +245,12 @@ const About = () => {
       <div className="absolute top-[40%] right-0 w-[400px] h-[400px] bg-[#BD5D31]/5 blur-[150px] pointer-events-none rounded-full" />
 
       {/* =====================================================
-          NAVIGATION
+          NAVBAR
          ===================================================== */}
 
-      <nav className="relative z-10 flex items-center justify-between px-6 sm:px-12 py-5 border-b border-[#1E2633]/80 bg-[#0E131A]/80 backdrop-blur-md sticky top-0">
+      <nav className="relative z-10 flex items-center justify-between px-5 sm:px-8 lg:px-12 py-5 border-b border-[#1E2633]/80 bg-[#0E131A]/85 backdrop-blur-md sticky top-0">
 
-        {/* BACK */}
+        {/* LEFT */}
 
         <button
           onClick={() =>
@@ -223,6 +266,7 @@ const About = () => {
         {/* CENTER LOGO */}
 
         <div className="flex items-center gap-3">
+
           <img
             src={logo}
             alt="Restro POS Logo"
@@ -230,34 +274,53 @@ const About = () => {
           />
 
           <span
-            className={`${labelFont} text-xs tracking-[0.3em] font-bold text-[#F3EEE3]`}
+            className={`${labelFont} hidden sm:inline text-xs tracking-[0.3em] font-bold text-[#F3EEE3]`}
           >
             RESTRO&nbsp;POS
           </span>
+
         </div>
 
-        {/* =================================================
-            AUTH ACTION
-           ================================================= */}
+        {/* RIGHT */}
 
         {userData?.isAuth ? (
-          <button
-            onClick={
-              handleLogout
-            }
-            disabled={
-              logoutMutation.isPending
-            }
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1B222B] border border-[#2a323d] text-[#F3EEE3] hover:bg-[#242c38] hover:border-[#BD5D31]/50 transition-all disabled:opacity-50"
-          >
-            <FiLogOut />
+          <div className="flex items-center gap-2">
 
-            <span className="hidden sm:inline">
-              {logoutMutation.isPending
-                ? "Logging out..."
-                : "Logout"}
-            </span>
-          </button>
+            {/* PROFILE */}
+
+            <button
+              onClick={() =>
+                navigate(
+                  "/profile"
+                )
+              }
+              className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1B222B] border border-[#2a323d] hover:border-[#BD5D31]/50 hover:bg-[#242c38] transition-all text-sm font-semibold"
+            >
+              <FiUsers />
+              Profile
+            </button>
+
+            {/* LOGOUT */}
+
+            <button
+              onClick={
+                handleLogout
+              }
+              disabled={
+                logoutMutation.isPending
+              }
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1B222B] border border-[#2a323d] text-[#F3EEE3] hover:bg-[#242c38] hover:border-[#BD5D31]/50 transition-all text-sm font-semibold disabled:opacity-50"
+            >
+              <FiLogOut />
+
+              <span className="hidden sm:inline">
+                {logoutMutation.isPending
+                  ? "Logging out..."
+                  : "Logout"}
+              </span>
+            </button>
+
+          </div>
         ) : (
           <button
             onClick={() =>
@@ -270,10 +333,11 @@ const About = () => {
             Login
           </button>
         )}
+
       </nav>
 
       {/* =====================================================
-          HERO HEADER
+          HERO
          ===================================================== */}
 
       <section className="relative z-10 max-w-5xl mx-auto text-center px-6 pt-12 pb-16">
@@ -340,7 +404,7 @@ const About = () => {
           synced in real time.
         </motion.p>
 
-        {/* TECH STACK */}
+        {/* TECH */}
 
         <motion.div
           initial={{
@@ -356,6 +420,7 @@ const About = () => {
           }}
           className="flex flex-wrap items-center justify-center gap-2 mt-8"
         >
+
           {techStack.map(
             (tech) => (
               <span
@@ -366,7 +431,9 @@ const About = () => {
               </span>
             )
           )}
+
         </motion.div>
+
       </section>
 
       {/* =====================================================
@@ -400,7 +467,7 @@ const About = () => {
                 title,
                 text,
               },
-              i
+              index
             ) => (
               <motion.div
                 key={title}
@@ -417,42 +484,42 @@ const About = () => {
                 }}
                 transition={{
                   delay:
-                    0.05 * i,
+                    0.05 *
+                    index,
                 }}
-                className="bg-[#141B24] hover:bg-[#18222E] border border-[#212C3B] hover:border-[#BD5D31]/50 rounded-2xl p-6 transition-all duration-300 shadow-xl group flex flex-col justify-between"
+                className="bg-[#141B24] hover:bg-[#18222E] border border-[#212C3B] hover:border-[#BD5D31]/50 rounded-2xl p-6 transition-all duration-300 shadow-xl group"
               >
 
-                <div>
+                <div className="flex items-center justify-between mb-5">
 
-                  <div className="flex items-center justify-between mb-5">
-
-                    <div className="bg-[#BD5D31]/15 text-[#BD5D31] p-3 rounded-xl group-hover:scale-110 transition-transform">
-                      <Icon size={22} />
-                    </div>
-
-                    <span
-                      className={`${labelFont} text-[9px] tracking-wider font-bold text-[#BD5D31] bg-[#BD5D31]/10 px-2.5 py-1 rounded-md border border-[#BD5D31]/20`}
-                    >
-                      {badge}
-                    </span>
-
+                  <div className="bg-[#BD5D31]/15 text-[#BD5D31] p-3 rounded-xl group-hover:scale-110 transition-transform">
+                    <Icon
+                      size={22}
+                    />
                   </div>
 
-                  <h3 className="text-[#F3EEE3] text-lg font-bold mb-2 group-hover:text-white transition-colors">
-                    {title}
-                  </h3>
-
-                  <p className="text-[#838D9E] text-xs leading-relaxed">
-                    {text}
-                  </p>
+                  <span
+                    className={`${labelFont} text-[9px] tracking-wider font-bold text-[#BD5D31] bg-[#BD5D31]/10 px-2.5 py-1 rounded-md border border-[#BD5D31]/20`}
+                  >
+                    {badge}
+                  </span>
 
                 </div>
+
+                <h3 className="text-[#F3EEE3] text-lg font-bold mb-2">
+                  {title}
+                </h3>
+
+                <p className="text-[#838D9E] text-xs leading-relaxed">
+                  {text}
+                </p>
 
               </motion.div>
             )
           )}
 
         </div>
+
       </section>
 
       {/* =====================================================
@@ -476,24 +543,28 @@ const About = () => {
 
         </div>
 
-        {/* DURATION */}
+        {/* =================================================
+            DURATION
+           ================================================= */}
 
         <div className="flex justify-center mb-10">
 
-          <div className="relative flex bg-[#141B24] border border-[#212C3B] rounded-full p-1.5 shadow-inner">
+          <div className="relative flex flex-wrap justify-center bg-[#141B24] border border-[#212C3B] rounded-full p-1.5 shadow-inner">
 
             {DURATIONS.map(
-              (d) => {
+              (item) => {
                 const active =
                   duration ===
-                  d.id;
+                  item.id;
 
                 return (
                   <button
-                    key={d.id}
+                    key={
+                      item.id
+                    }
                     onClick={() =>
                       setDuration(
-                        d.id
+                        item.id
                       )
                     }
                     className={`relative px-6 py-2 text-xs sm:text-sm font-bold rounded-full transition-colors z-10 ${
@@ -502,6 +573,7 @@ const About = () => {
                         : "text-[#838D9E] hover:text-[#F3EEE3]"
                     }`}
                   >
+
                     {active && (
                       <motion.span
                         layoutId="about-duration-active"
@@ -514,45 +586,51 @@ const About = () => {
                       />
                     )}
 
-                    {d.label}
+                    {
+                      item.label
+                    }
+
                   </button>
                 );
               }
             )}
 
           </div>
+
         </div>
 
-        {/* PLAN CARDS */}
+        {/* =================================================
+            PLAN CARDS
+           ================================================= */}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
 
           {BUSINESS_PLANS.map(
-            (plan) => {
+            (item) => {
               const price =
-                plan.prices[
+                item.prices[
                   duration
                 ];
 
               const savings =
                 savingsLabel(
-                  plan,
+                  item,
                   duration
                 );
 
               return (
                 <div
                   key={
-                    plan.id
+                    item.id
                   }
                   className={`rounded-2xl p-7 flex flex-col relative transition-all duration-300 ${
-                    plan.highlighted
+                    item.highlighted
                       ? "bg-gradient-to-b from-[#BD5D31] to-[#92421D] text-[#F3EEE3] shadow-2xl shadow-[#BD5D31]/25 ring-2 ring-[#E38558]"
                       : "bg-[#141B24] border border-[#212C3B] text-[#F3EEE3]"
                   }`}
                 >
 
-                  {plan.highlighted && (
+                  {item.highlighted && (
                     <span
                       className={`${labelFont} absolute -top-3 left-6 bg-[#F3EEE3] text-[#BD5D31] text-[10px] font-bold px-3 py-0.5 rounded-full shadow`}
                     >
@@ -561,18 +639,20 @@ const About = () => {
                   )}
 
                   <h3 className="text-2xl font-bold mt-1">
-                    {plan.name}
+                    {
+                      item.name
+                    }
                   </h3>
 
                   <p
                     className={`text-xs mt-1 mb-5 ${
-                      plan.highlighted
+                      item.highlighted
                         ? "text-[#F3EEE3]/90"
                         : "text-[#838D9E]"
                     }`}
                   >
                     {
-                      plan.tagline
+                      item.tagline
                     }
                   </p>
 
@@ -587,7 +667,7 @@ const About = () => {
 
                     <span
                       className={`text-xs ${
-                        plan.highlighted
+                        item.highlighted
                           ? "text-[#F3EEE3]/80"
                           : "text-[#838D9E]"
                       }`}
@@ -607,14 +687,12 @@ const About = () => {
                   {savings ? (
                     <p
                       className={`text-xs font-bold mb-5 ${
-                        plan.highlighted
+                        item.highlighted
                           ? "text-[#F3EEE3]"
                           : "text-[#8FB89C]"
                       }`}
                     >
-                      {
-                        savings
-                      }
+                      {savings}
                     </p>
                   ) : (
                     <div className="mb-5" />
@@ -622,7 +700,7 @@ const About = () => {
 
                   <ul className="space-y-3 mb-8 flex-1 border-t border-white/10 pt-5">
 
-                    {plan.features.map(
+                    {item.features.map(
                       (feature) => (
                         <li
                           key={
@@ -633,7 +711,7 @@ const About = () => {
 
                           <FiCheck
                             className={`mt-0.5 shrink-0 text-base ${
-                              plan.highlighted
+                              item.highlighted
                                 ? "text-[#F3EEE3]"
                                 : "text-[#BD5D31]"
                             }`}
@@ -641,7 +719,7 @@ const About = () => {
 
                           <span
                             className={
-                              plan.highlighted
+                              item.highlighted
                                 ? "text-[#F3EEE3]"
                                 : "text-[#A0AAB8]"
                             }
@@ -655,14 +733,16 @@ const About = () => {
 
                   </ul>
 
+                  {/* =================================================
+                      THIS IS THE IMPORTANT FIX
+                     ================================================= */}
+
                   <button
-                    onClick={() =>
-                      navigate(
-                        "/auth"
-                      )
+                    onClick={
+                      handleGetStarted
                     }
                     className={`w-full rounded-xl py-3.5 text-sm font-extrabold tracking-wide transition-transform active:scale-95 shadow-lg ${
-                      plan.highlighted
+                      item.highlighted
                         ? "bg-[#F3EEE3] text-[#BD5D31] hover:bg-white"
                         : "bg-[#BD5D31] text-[#F3EEE3] hover:bg-[#a64e26]"
                     }`}
@@ -677,19 +757,27 @@ const About = () => {
 
         </div>
 
-        {/* STAFF SEATS */}
+        {/* =================================================
+            STAFF
+           ================================================= */}
 
         <div className="max-w-3xl mx-auto mt-8 bg-[#141B24] border border-[#212C3B] rounded-2xl p-6 text-center shadow-md">
 
-          <p className="text-[#F3EEE3] font-bold text-sm mb-1">
-            Add Waiters & Kitchen Accounts
-          </p>
+          <div className="flex items-center justify-center gap-2 mb-2">
+
+            <FiActivity className="text-[#BD5D31]" />
+
+            <p className="text-[#F3EEE3] font-bold text-sm">
+              Add Waiters & Kitchen Accounts
+            </p>
+
+          </div>
 
           <p className="text-[#838D9E] text-xs leading-relaxed">
             Staff seats cost ₹
             {STAFF_BASE_PRICE}
-            /mo each. Get 50%
-            discount at{" "}
+            /mo each. Get 50% discount
+            at{" "}
             <span className="text-[#8FB89C] font-bold">
               ₹
               {
@@ -702,7 +790,9 @@ const About = () => {
           </p>
 
         </div>
+
       </section>
+
     </div>
   );
 };
