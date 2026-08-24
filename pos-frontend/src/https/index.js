@@ -391,3 +391,33 @@ export const deleteCompletedOrders =
     axiosWrapper.delete(
       "/api/order/completed"
     );
+
+
+    // ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+export const getMyNotifications =
+  () =>
+    axiosWrapper.get(
+      "/api/notification"
+    );
+
+export const markAllNotificationsRead =
+  () =>
+    axiosWrapper.patch(
+      "/api/notification/read-all"
+    );
+
+export const markNotificationRead =
+  (id) =>
+    axiosWrapper.patch(
+      `/api/notification/${id}/read`
+    );
+
+export const sendNotification =
+  (data) =>
+    axiosWrapper.post(
+      "/api/notification/send",
+      data
+    );
