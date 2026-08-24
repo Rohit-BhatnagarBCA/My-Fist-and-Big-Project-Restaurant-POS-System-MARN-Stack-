@@ -1,11 +1,52 @@
 const express = require("express");
-const { addCategory, getCategories, deleteCategory, updateCategory } = require("../controllers/categoryController");
-const router = express.Router();
-const { isVerifiedUser } = require("../middlewares/tokenVerification");
 
-router.route("/").post(isVerifiedUser, addCategory);
-router.route("/").get(isVerifiedUser, getCategories);
-router.route("/:id").put(isVerifiedUser, updateCategory);
-router.route("/:id").delete(isVerifiedUser, deleteCategory);
+const {
+  addCategory,
+  getCategories,
+  deleteCategory,
+  updateCategory,
+} = require("../controllers/categoryController");
 
-module.exports = router;
+const {
+  isVerifiedUser,
+  isAdmin,
+} = require("../middlewares/tokenVerification");
+
+const router =
+  express.Router();
+
+// View categories — restaurant staff allowed.
+router
+  .route("/")
+  .get(
+    isVerifiedUser,
+    getCategories
+  );
+
+// Category management — Admin only.
+router
+  .route("/")
+  .post(
+    isVerifiedUser,
+    isAdmin,
+    addCategory
+  );
+
+router
+  .route("/:id")
+  .put(
+    isVerifiedUser,
+    isAdmin,
+    updateCategory
+  );
+
+router
+  .route("/:id")
+  .delete(
+    isVerifiedUser,
+    isAdmin,
+    deleteCategory
+  );
+
+module.exports =
+  router;

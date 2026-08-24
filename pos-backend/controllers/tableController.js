@@ -3,10 +3,13 @@ const createHttpError = require("http-errors");
 const mongoose = require("mongoose");
 
 // ============================================================
-// HELPER
+// RESTAURANT HELPER
 // ============================================================
 
-const requireRestaurant = (req, next) => {
+const requireRestaurant = (
+  req,
+  next
+) => {
   if (!req.user?.restaurantId) {
     next(
       createHttpError(
@@ -25,37 +28,55 @@ const requireRestaurant = (req, next) => {
 // ADD TABLE
 // ============================================================
 
-const addTable = async (req, res, next) => {
+const addTable = async (
+  req,
+  res,
+  next
+) => {
   try {
     const restaurantId =
-      requireRestaurant(req, next);
+      requireRestaurant(
+        req,
+        next
+      );
 
     if (!restaurantId) return;
 
-    const { tableNo, seats } = req.body;
+    const {
+      tableNo,
+      seats,
+    } = req.body;
+
+    const cleanTableNo =
+      Number(tableNo);
+
+    const cleanSeats =
+      Number(seats);
 
     if (
-      tableNo === undefined ||
-      tableNo === null ||
-      tableNo === ""
+      !Number.isInteger(
+        cleanTableNo
+      ) ||
+      cleanTableNo < 1
     ) {
       return next(
         createHttpError(
           400,
-          "Please provide table No!"
+          "Table number must be a positive number."
         )
       );
     }
 
     if (
-      seats === undefined ||
-      seats === null ||
-      seats === ""
+      !Number.isInteger(
+        cleanSeats
+      ) ||
+      cleanSeats < 1
     ) {
       return next(
         createHttpError(
           400,
-          "Please provide number of seats!"
+          "Number of seats must be at least 1."
         )
       );
     }
@@ -63,33 +84,56 @@ const addTable = async (req, res, next) => {
     const existingTable =
       await Table.findOne({
         restaurantId,
-        tableNo,
+        tableNo:
+          cleanTableNo,
       });
 
     if (existingTable) {
       return next(
         createHttpError(
           400,
-          "Table already exists in this restaurant!"
+          `Table ${cleanTableNo} already exists in this restaurant.`
         )
       );
     }
 
     const newTable =
-      new Table({
+      await Table.create({
         restaurantId,
-        tableNo,
-        seats,
-      });
 
-    await newTable.save();
+        tableNo:
+          cleanTableNo,
+
+        seats:
+          cleanSeats,
+
+        status:
+          "Available",
+
+        currentOrder:
+          null,
+      });
 
     return res.status(201).json({
       success: true,
-      message: "Table added!",
-      data: newTable,
+      message:
+        "Table added!",
+      data:
+        newTable,
     });
   } catch (error) {
+    // Mongo duplicate index fallback
+    if (
+      error?.code === 11000
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "This table number already exists in your restaurant."
+        )
+      );
+    }
+
     next(error);
   }
 };
@@ -105,7 +149,10 @@ const getTables = async (
 ) => {
   try {
     const restaurantId =
-      requireRestaurant(req, next);
+      requireRestaurant(
+        req,
+        next
+      );
 
     if (!restaurantId) return;
 
@@ -114,14 +161,19 @@ const getTables = async (
         restaurantId,
       })
         .populate({
-          path: "currentOrder",
-          select: "customerDetails",
+          path:
+            "currentOrder",
+          select:
+            "customerDetails orderStatus orderType",
         })
-        .sort({ tableNo: 1 });
+        .sort({
+          tableNo: 1,
+        });
 
     return res.status(200).json({
       success: true,
-      data: tables,
+      data:
+        tables,
     });
   } catch (error) {
     next(error);
@@ -130,6 +182,10 @@ const getTables = async (
 
 // ============================================================
 // UPDATE TABLE
+//
+// Used for:
+// 1. Admin edit: tableNo + seats
+// 2. Order flow: status + orderId
 // ============================================================
 
 const updateTable = async (
@@ -139,22 +195,21 @@ const updateTable = async (
 ) => {
   try {
     const restaurantId =
-      requireRestaurant(req, next);
+      requireRestaurant(
+        req,
+        next
+      );
 
     if (!restaurantId) return;
 
     const {
-      status,
-      orderId,
-      tableNo,
-      seats,
-    } = req.body;
-
-    const { id } =
-      req.params;
+      id,
+    } = req.params;
 
     if (
-      !mongoose.Types.ObjectId.isValid(id)
+      !mongoose.Types.ObjectId.isValid(
+        id
+      )
     ) {
       return next(
         createHttpError(
@@ -164,114 +219,208 @@ const updateTable = async (
       );
     }
 
-    // --------------------------------------------------------
-    // Make sure this table belongs to the logged-in restaurant.
-    // --------------------------------------------------------
-
-    const existingTable =
+    const table =
       await Table.findOne({
         _id: id,
         restaurantId,
-      });
-
-    if (!existingTable) {
-      return next(
-        createHttpError(
-          404,
-          "Table not found!"
-        )
-      );
-    }
-
-    // --------------------------------------------------------
-    // Prevent duplicate table numbers inside same restaurant.
-    // --------------------------------------------------------
-
-    if (
-      tableNo !== undefined &&
-      Number(tableNo) !==
-        Number(existingTable.tableNo)
-    ) {
-      const duplicateTable =
-        await Table.findOne({
-          restaurantId,
-          tableNo,
-          _id: {
-            $ne: id,
-          },
-        });
-
-      if (duplicateTable) {
-        return next(
-          createHttpError(
-            400,
-            "Another table with this number already exists in this restaurant!"
-          )
-        );
-      }
-    }
-
-    const updateFields = {};
-
-    if (
-      status !== undefined
-    ) {
-      updateFields.status =
-        status;
-    }
-
-    if (
-      orderId !== undefined
-    ) {
-      updateFields.currentOrder =
-        orderId || null;
-    }
-
-    if (
-      tableNo !== undefined
-    ) {
-      updateFields.tableNo =
-        tableNo;
-    }
-
-    if (
-      seats !== undefined
-    ) {
-      updateFields.seats =
-        seats;
-    }
-
-    const table =
-      await Table.findOneAndUpdate(
-        {
-          _id: id,
-          restaurantId,
-        },
-        updateFields,
-        {
-          new: true,
-          runValidators: true,
-        }
-      ).populate({
-        path: "currentOrder",
-        select: "customerDetails",
       });
 
     if (!table) {
       return next(
         createHttpError(
           404,
-          "Table not found!"
+          "Table not found in this restaurant!"
         )
       );
     }
 
+    const {
+      status,
+      orderId,
+      tableNo,
+      seats,
+    } = req.body;
+
+    const updates = {};
+
+    // --------------------------------------------------------
+    // Table number
+    // --------------------------------------------------------
+
+    if (
+      tableNo !== undefined
+    ) {
+      const cleanTableNo =
+        Number(tableNo);
+
+      if (
+        !Number.isInteger(
+          cleanTableNo
+        ) ||
+        cleanTableNo < 1
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Table number must be a positive number."
+          )
+        );
+      }
+
+      const duplicate =
+        await Table.findOne({
+          restaurantId,
+          tableNo:
+            cleanTableNo,
+          _id: {
+            $ne: id,
+          },
+        });
+
+      if (duplicate) {
+        return next(
+          createHttpError(
+            400,
+            `Table ${cleanTableNo} already exists in this restaurant.`
+          )
+        );
+      }
+
+      updates.tableNo =
+        cleanTableNo;
+    }
+
+    // --------------------------------------------------------
+    // Seats
+    // --------------------------------------------------------
+
+    if (
+      seats !== undefined
+    ) {
+      const cleanSeats =
+        Number(seats);
+
+      if (
+        !Number.isInteger(
+          cleanSeats
+        ) ||
+        cleanSeats < 1
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Number of seats must be at least 1."
+          )
+        );
+      }
+
+      updates.seats =
+        cleanSeats;
+    }
+
+    // --------------------------------------------------------
+    // Status
+    // --------------------------------------------------------
+
+    if (
+      status !== undefined
+    ) {
+      if (
+        ![
+          "Available",
+          "Booked",
+        ].includes(status)
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Invalid table status."
+          )
+        );
+      }
+
+      updates.status =
+        status;
+    }
+
+    // --------------------------------------------------------
+    // Current order
+    // --------------------------------------------------------
+
+    if (
+      orderId !== undefined
+    ) {
+      if (
+        orderId !== null &&
+        !mongoose.Types.ObjectId.isValid(
+          orderId
+        )
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Invalid order id."
+          )
+        );
+      }
+
+      updates.currentOrder =
+        orderId;
+    }
+
+    if (
+      Object.keys(
+        updates
+      ).length === 0
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "No table changes provided."
+        )
+      );
+    }
+
+    const updatedTable =
+      await Table.findOneAndUpdate(
+        {
+          _id: id,
+          restaurantId,
+        },
+        {
+          $set:
+            updates,
+        },
+        {
+          new: true,
+          runValidators: true,
+        }
+      ).populate({
+        path:
+          "currentOrder",
+        select:
+          "customerDetails orderStatus orderType",
+      });
+
     return res.status(200).json({
       success: true,
-      message: "Table updated!",
-      data: table,
+      message:
+        "Table updated!",
+      data:
+        updatedTable,
     });
   } catch (error) {
+    if (
+      error?.code === 11000
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "This table number already exists in your restaurant."
+        )
+      );
+    }
+
     next(error);
   }
 };
@@ -287,15 +436,21 @@ const deleteTable = async (
 ) => {
   try {
     const restaurantId =
-      requireRestaurant(req, next);
+      requireRestaurant(
+        req,
+        next
+      );
 
     if (!restaurantId) return;
 
-    const { id } =
-      req.params;
+    const {
+      id,
+    } = req.params;
 
     if (
-      !mongoose.Types.ObjectId.isValid(id)
+      !mongoose.Types.ObjectId.isValid(
+        id
+      )
     ) {
       return next(
         createHttpError(
@@ -321,7 +476,8 @@ const deleteTable = async (
     }
 
     if (
-      table.status === "Booked"
+      table.status ===
+      "Booked"
     ) {
       return next(
         createHttpError(
@@ -338,7 +494,8 @@ const deleteTable = async (
 
     return res.status(200).json({
       success: true,
-      message: "Table deleted!",
+      message:
+        "Table deleted!",
     });
   } catch (error) {
     next(error);

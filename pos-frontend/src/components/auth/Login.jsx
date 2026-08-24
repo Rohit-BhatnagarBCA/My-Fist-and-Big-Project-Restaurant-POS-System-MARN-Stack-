@@ -1,12 +1,41 @@
-import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { useMutation } from "@tanstack/react-query";
-import { login } from "../../https";
-import { enqueueSnackbar } from "notistack";
-import { useDispatch } from "react-redux";
-import { setUser } from "../../redux/slices/userSlice";
-import { useNavigate } from "react-router-dom";
-import { FiMail, FiLock } from "react-icons/fi";
+import React, {
+  useState,
+} from "react";
+
+import {
+  motion,
+} from "framer-motion";
+
+import {
+  useMutation,
+} from "@tanstack/react-query";
+
+import {
+  login,
+  getUserData,
+} from "../../https";
+
+import {
+  enqueueSnackbar,
+} from "notistack";
+
+import {
+  useDispatch,
+} from "react-redux";
+
+import {
+  setUser,
+} from "../../redux/slices/userSlice";
+
+import {
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  FiMail,
+  FiLock,
+} from "react-icons/fi";
+
 import {
   IoEyeOutline,
   IoEyeOffOutline,
@@ -39,178 +68,420 @@ const TicketField = ({
 );
 
 const Login = () => {
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
+  const navigate =
+    useNavigate();
 
-  const [showPassword, setShowPassword] =
-    useState(false);
+  const dispatch =
+    useDispatch();
 
-  const [formData, setFormData] =
-    useState({
-      email: "",
-      password: "",
-    });
+  const [
+    showPassword,
+    setShowPassword,
+  ] = useState(false);
 
-  const handleChange = (event) => {
-    setFormData({
-      ...formData,
-      [event.target.name]:
-        event.target.value,
-    });
-  };
+  const [
+    formData,
+    setFormData,
+  ] = useState({
+    email: "",
+    password: "",
+  });
 
-  const loginMutation = useMutation({
-    mutationFn: (reqData) =>
-      login(reqData),
-
-    onSuccess: (res) => {
-      const responseData =
-        res?.data;
-
-      const userData =
-        responseData?.data ||
-        responseData?.user ||
-        responseData;
-
-      if (!userData?._id) {
-        enqueueSnackbar(
-          "Invalid login response!",
-          {
-            variant: "error",
-          }
-        );
-
-        return;
-      }
-
-      const {
-        _id,
-        name,
-        email,
-        phone,
-        role,
-        subscription,
-      } = userData;
-
-      const expiryDate =
-        subscription?.expiryDate ||
+  const saveSession =
+    (userData) => {
+      const restaurant =
+        userData?.restaurantId ||
         null;
 
-      const hasExpiry =
-        Boolean(expiryDate);
+      /*
+        IMPORTANT:
+        Restaurant subscription is the primary source.
+        User subscription is used only as a fallback
+        for older accounts.
+      */
+      const restaurantSubscription =
+        restaurant?.subscription;
 
-      const isExpired =
-        hasExpiry &&
-        new Date(expiryDate) <=
-          new Date();
+      const userSubscription =
+        userData?.subscription;
 
-      const isSubscribed =
-        Boolean(
-          subscription?.startDate
-        ) && !isExpired;
+      const subscription =
+        restaurantSubscription &&
+        (
+          restaurantSubscription
+            .startDate ||
+          restaurantSubscription
+            .expiryDate ||
+          restaurantSubscription
+            .plan
+        )
+          ? restaurantSubscription
+          : userSubscription ||
+            null;
 
       dispatch(
         setUser({
-          _id,
-          name,
-          email,
-          phone,
-          role,
+          _id:
+            userData._id,
 
-          isSubscribed,
+          name:
+            userData.name,
 
-          subscription: {
-            plan:
-              subscription?.plan ||
-              null,
+          email:
+            userData.email,
 
-            duration:
-              subscription?.duration ||
-              null,
+          phone:
+            userData.phone,
 
-            amountPaid:
-              subscription?.amountPaid ||
-              0,
+          role:
+            userData.role,
 
-            startDate:
-              subscription?.startDate ||
-              null,
+          restaurantId:
+            restaurant?._id ||
+            null,
 
-            expiryDate,
+          restaurant,
 
-            linkedAdminEmail:
-              subscription?.linkedAdminEmail ||
-              null,
+          subscription,
 
-            status:
-              isSubscribed
-                ? "active"
-                : "inactive",
-          },
+          isAuth:
+            true,
         })
       );
 
-      enqueueSnackbar(
-        "Login successful!",
-        {
-          variant: "success",
-        }
-      );
+      return {
+        restaurant,
+        subscription,
+      };
+    };
 
-      // =====================================================
-      // SUPER ADMIN
-      // =====================================================
+  const loginMutation =
+    useMutation({
+      mutationFn: (
+        reqData
+      ) =>
+        login(reqData),
 
-      if (
-        role === "SuperAdmin"
-      ) {
-        navigate(
-          "/super-admin",
+      onSuccess:
+        async (
+          res
+        ) => {
+          const responseData =
+            res?.data;
+
+          const initialUser =
+            responseData?.data ||
+            responseData?.user ||
+            responseData;
+
+          if (
+            !initialUser?._id
+          ) {
+            enqueueSnackbar(
+              "Invalid login response!",
+              {
+                variant:
+                  "error",
+              }
+            );
+
+            return;
+          }
+
+          /*
+            First save what login returned.
+          */
+          saveSession(
+            initialUser
+          );
+
+          /*
+            Then fetch the authoritative current user
+            from backend once more.
+
+            This is important because the backend may have
+            updated Restaurant.subscription/status.
+          */
+          try {
+            const freshResponse =
+              await getUserData();
+
+            const freshUser =
+              freshResponse
+                ?.data
+                ?.data;
+
+            if (
+              freshUser?._id
+            ) {
+              saveSession(
+                freshUser
+              );
+
+              const restaurant =
+                freshUser.restaurantId ||
+                null;
+
+              const restaurantSubscription =
+                restaurant?.subscription;
+
+              const userSubscription =
+                freshUser.subscription;
+
+              const subscription =
+                restaurantSubscription &&
+                (
+                  restaurantSubscription
+                    .startDate ||
+                  restaurantSubscription
+                    .expiryDate ||
+                  restaurantSubscription
+                    .plan
+                )
+                  ? restaurantSubscription
+                  : userSubscription ||
+                    null;
+
+              const now =
+                new Date();
+
+              const startDate =
+                subscription
+                  ?.startDate
+                  ? new Date(
+                      subscription.startDate
+                    )
+                  : null;
+
+              const expiryDate =
+                subscription
+                  ?.expiryDate
+                  ? new Date(
+                      subscription.expiryDate
+                    )
+                  : null;
+
+              const hasValidDates =
+                startDate &&
+                expiryDate &&
+                !Number.isNaN(
+                  startDate.getTime()
+                ) &&
+                !Number.isNaN(
+                  expiryDate.getTime()
+                );
+
+              const isActive =
+                Boolean(
+                  hasValidDates &&
+                  now >= startDate &&
+                  now < expiryDate
+                );
+
+              const isRestaurantActive =
+                restaurant?.status ===
+                "active";
+
+              /*
+                SuperAdmin always goes to SuperAdmin.
+              */
+
+              if (
+                freshUser.role ===
+                "SuperAdmin"
+              ) {
+                enqueueSnackbar(
+                  "Login successful!",
+                  {
+                    variant:
+                      "success",
+                  }
+                );
+
+                navigate(
+                  "/super-admin",
+                  {
+                    replace:
+                      true,
+                  }
+                );
+
+                return;
+              }
+
+              enqueueSnackbar(
+                "Login successful!",
+                {
+                  variant:
+                    "success",
+                }
+              );
+
+              /*
+                Only a currently active restaurant subscription
+                goes directly into POS.
+              */
+              if (
+                isActive &&
+                isRestaurantActive
+              ) {
+                navigate(
+                  "/",
+                  {
+                    replace:
+                      true,
+                  }
+                );
+
+                return;
+              }
+
+              /*
+                No active subscription:
+                send user to About / pricing.
+              */
+              navigate(
+                "/about",
+                {
+                  replace:
+                    true,
+                }
+              );
+
+              return;
+            }
+          } catch (error) {
+            console.error(
+              "Fresh session fetch failed:",
+              error
+            );
+          }
+
+          /*
+            Fallback if fresh fetch fails.
+            Still use the initial login data.
+          */
+
+          const {
+            restaurant,
+            subscription,
+          } = saveSession(
+            initialUser
+          );
+
+          const now =
+            new Date();
+
+          const startDate =
+            subscription
+              ?.startDate
+              ? new Date(
+                  subscription.startDate
+                )
+              : null;
+
+          const expiryDate =
+            subscription
+              ?.expiryDate
+              ? new Date(
+                  subscription.expiryDate
+                )
+              : null;
+
+          const isActive =
+            Boolean(
+              startDate &&
+              expiryDate &&
+              now >= startDate &&
+              now < expiryDate
+            );
+
+          const isRestaurantActive =
+            restaurant?.status ===
+            "active";
+
+          if (
+            initialUser.role ===
+            "SuperAdmin"
+          ) {
+            navigate(
+              "/super-admin",
+              {
+                replace:
+                  true,
+              }
+            );
+
+            return;
+          }
+
+          if (
+            isActive &&
+            isRestaurantActive
+          ) {
+            navigate(
+              "/",
+              {
+                replace:
+                  true,
+              }
+            );
+
+            return;
+          }
+
+          navigate(
+            "/about",
+            {
+              replace:
+                true,
+            }
+          );
+        },
+
+      onError: (
+        error
+      ) => {
+        const message =
+          error?.response
+            ?.data
+            ?.message ||
+          "Login failed!";
+
+        enqueueSnackbar(
+          message,
           {
-            replace: true,
+            variant:
+              "error",
           }
         );
+      },
+    });
 
-        return;
-      }
+  const handleChange =
+    (event) => {
+      setFormData({
+        ...formData,
 
-      // =====================================================
-      // NORMAL USERS
-      // =====================================================
-
-      navigate("/", {
-        replace: true,
+        [event.target.name]:
+          event.target.value,
       });
-    },
+    };
 
-    onError: (error) => {
-      const message =
-        error?.response?.data
-          ?.message ||
-        "Login failed!";
+  const handleSubmit =
+    (event) => {
+      event.preventDefault();
 
-      enqueueSnackbar(
-        message,
-        {
-          variant: "error",
-        }
+      loginMutation.mutate(
+        formData
       );
-    },
-  });
-
-  const handleSubmit = (
-    event
-  ) => {
-    event.preventDefault();
-
-    loginMutation.mutate(
-      formData
-    );
-  };
+    };
 
   return (
     <form
-      onSubmit={handleSubmit}
+      onSubmit={
+        handleSubmit
+      }
     >
       <TicketField
         label="EMPLOYEE EMAIL"
@@ -219,8 +490,12 @@ const Login = () => {
         <input
           type="email"
           name="email"
-          value={formData.email}
-          onChange={handleChange}
+          value={
+            formData.email
+          }
+          onChange={
+            handleChange
+          }
           placeholder="you@restro.com"
           className="bg-transparent flex-1 text-[#2A241D] placeholder:text-[#a89e8b] focus:outline-none text-sm"
           required
@@ -238,8 +513,12 @@ const Login = () => {
               : "password"
           }
           name="password"
-          value={formData.password}
-          onChange={handleChange}
+          value={
+            formData.password
+          }
+          onChange={
+            handleChange
+          }
           placeholder="••••••••"
           className="bg-transparent flex-1 text-[#2A241D] placeholder:text-[#a89e8b] focus:outline-none text-sm"
           required
@@ -271,7 +550,8 @@ const Login = () => {
         whileHover={
           !loginMutation.isPending
             ? {
-                scale: 1.015,
+                scale:
+                  1.015,
               }
             : {}
         }
