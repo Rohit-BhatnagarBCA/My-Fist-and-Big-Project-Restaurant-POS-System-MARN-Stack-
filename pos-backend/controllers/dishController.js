@@ -7,7 +7,10 @@ const mongoose = require("mongoose");
 // HELPER
 // ============================================================
 
-const requireRestaurant = (req, next) => {
+const requireRestaurant = (
+  req,
+  next
+) => {
   if (!req.user?.restaurantId) {
     next(
       createHttpError(
@@ -22,8 +25,18 @@ const requireRestaurant = (req, next) => {
   return req.user.restaurantId;
 };
 
+const isKitchenOrAdmin = (
+  req
+) => {
+  return (
+    req.user?.role === "Kitchen" ||
+    req.user?.role === "Admin"
+  );
+};
+
 // ============================================================
 // ADD DISH
+// ADMIN ONLY
 // ============================================================
 
 const addDish = async (
@@ -36,6 +49,17 @@ const addDish = async (
       requireRestaurant(req, next);
 
     if (!restaurantId) return;
+
+    if (
+      req.user?.role !== "Admin"
+    ) {
+      return next(
+        createHttpError(
+          403,
+          "Admin access required!"
+        )
+      );
+    }
 
     const {
       name,
@@ -71,10 +95,6 @@ const addDish = async (
       );
     }
 
-    // --------------------------------------------------------
-    // Category MUST belong to same restaurant.
-    // --------------------------------------------------------
-
     const categoryExists =
       await Category.findOne({
         _id: category,
@@ -96,11 +116,17 @@ const addDish = async (
     const newDish =
       new Dish({
         restaurantId,
+
         name:
           String(name).trim(),
+
         price,
+
         category,
-        quantity: stockQty,
+
+        quantity:
+          stockQty,
+
         isAvailable:
           stockQty > 0,
       });
@@ -115,8 +141,10 @@ const addDish = async (
 
     return res.status(201).json({
       success: true,
-      message: "Dish added!",
-      data: populatedDish,
+      message:
+        "Dish added!",
+      data:
+        populatedDish,
     });
   } catch (error) {
     next(error);
@@ -125,6 +153,7 @@ const addDish = async (
 
 // ============================================================
 // GET DISHES
+// AUTHENTICATED RESTAURANT USERS
 // ============================================================
 
 const getDishes = async (
@@ -141,14 +170,19 @@ const getDishes = async (
     const dishes =
       await Dish.find({
         restaurantId,
-      }).populate(
-        "category",
-        "name icon bgColor"
-      );
+      })
+        .populate(
+          "category",
+          "name icon bgColor"
+        )
+        .sort({
+          createdAt: -1,
+        });
 
     return res.status(200).json({
       success: true,
-      data: dishes,
+      data:
+        dishes,
     });
   } catch (error) {
     next(error);
@@ -157,6 +191,14 @@ const getDishes = async (
 
 // ============================================================
 // UPDATE DISH
+// ADMIN ONLY
+//
+// Full dish editing:
+// name
+// price
+// category
+// quantity
+// isAvailable
 // ============================================================
 
 const updateDish = async (
@@ -170,8 +212,20 @@ const updateDish = async (
 
     if (!restaurantId) return;
 
-    const { id } =
-      req.params;
+    if (
+      req.user?.role !== "Admin"
+    ) {
+      return next(
+        createHttpError(
+          403,
+          "Admin access required!"
+        )
+      );
+    }
+
+    const {
+      id,
+    } = req.params;
 
     const {
       isAvailable,
@@ -182,7 +236,9 @@ const updateDish = async (
     } = req.body;
 
     if (
-      !mongoose.Types.ObjectId.isValid(id)
+      !mongoose.Types.ObjectId.isValid(
+        id
+      )
     ) {
       return next(
         createHttpError(
@@ -208,8 +264,7 @@ const updateDish = async (
     }
 
     // --------------------------------------------------------
-    // If category changes, new category must belong
-    // to the same restaurant.
+    // CATEGORY CHECK
     // --------------------------------------------------------
 
     if (
@@ -249,15 +304,44 @@ const updateDish = async (
     if (
       name !== undefined
     ) {
-      updateFields.name =
+      const cleanName =
         String(name).trim();
+
+      if (!cleanName) {
+        return next(
+          createHttpError(
+            400,
+            "Dish name cannot be empty!"
+          )
+        );
+      }
+
+      updateFields.name =
+        cleanName;
     }
 
     if (
       price !== undefined
     ) {
+      const numericPrice =
+        Number(price);
+
+      if (
+        Number.isNaN(
+          numericPrice
+        ) ||
+        numericPrice < 0
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Invalid dish price!"
+          )
+        );
+      }
+
       updateFields.price =
-        price;
+        numericPrice;
     }
 
     if (
@@ -271,7 +355,19 @@ const updateDish = async (
       quantity !== undefined
     ) {
       const stockQty =
-        Number(quantity) || 0;
+        Number(quantity);
+
+      if (
+        Number.isNaN(stockQty) ||
+        stockQty < 0
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Stock quantity cannot be negative!"
+          )
+        );
+      }
 
       updateFields.quantity =
         stockQty;
@@ -285,7 +381,22 @@ const updateDish = async (
       quantity === undefined
     ) {
       updateFields.isAvailable =
-        isAvailable;
+        Boolean(
+          isAvailable
+        );
+    }
+
+    if (
+      Object.keys(
+        updateFields
+      ).length === 0
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "No dish changes provided!"
+        )
+      );
     }
 
     const dish =
@@ -294,7 +405,10 @@ const updateDish = async (
           _id: id,
           restaurantId,
         },
-        updateFields,
+        {
+          $set:
+            updateFields,
+        },
         {
           new: true,
           runValidators: true,
@@ -315,8 +429,10 @@ const updateDish = async (
 
     return res.status(200).json({
       success: true,
-      message: "Dish updated!",
-      data: dish,
+      message:
+        "Dish updated!",
+      data:
+        dish,
     });
   } catch (error) {
     next(error);
@@ -324,7 +440,193 @@ const updateDish = async (
 };
 
 // ============================================================
+// KITCHEN — UPDATE STOCK ONLY
+//
+// Kitchen can ONLY change:
+// quantity
+// isAvailable
+//
+// Cannot change:
+// name
+// price
+// category
+// ============================================================
+
+const updateDishStock =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      const restaurantId =
+        requireRestaurant(
+          req,
+          next
+        );
+
+      if (!restaurantId) return;
+
+      if (
+        !isKitchenOrAdmin(req)
+      ) {
+        return next(
+          createHttpError(
+            403,
+            "Only Kitchen or Admin can update stock!"
+          )
+        );
+      }
+
+      const {
+        id,
+      } = req.params;
+
+      if (
+        !mongoose.Types.ObjectId.isValid(
+          id
+        )
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Invalid dish id!"
+          )
+        );
+      }
+
+      const {
+        quantity,
+        isAvailable,
+      } = req.body;
+
+      if (
+        quantity === undefined &&
+        isAvailable === undefined
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Provide quantity or stock availability!"
+          )
+        );
+      }
+
+      const dish =
+        await Dish.findOne({
+          _id: id,
+          restaurantId,
+        });
+
+      if (!dish) {
+        return next(
+          createHttpError(
+            404,
+            "Dish not found!"
+          )
+        );
+      }
+
+      const updateFields =
+        {};
+
+      // --------------------------------------------------------
+      // QUANTITY
+      // --------------------------------------------------------
+
+      if (
+        quantity !== undefined
+      ) {
+        const nextQuantity =
+          Number(quantity);
+
+        if (
+          !Number.isInteger(
+            nextQuantity
+          ) ||
+          nextQuantity < 0
+        ) {
+          return next(
+            createHttpError(
+              400,
+              "Stock quantity must be a whole number greater than or equal to 0."
+            )
+          );
+        }
+
+        updateFields.quantity =
+          nextQuantity;
+
+        // Quantity = 0 automatically means unavailable.
+        if (
+          nextQuantity === 0
+        ) {
+          updateFields.isAvailable =
+            false;
+        } else if (
+          isAvailable === undefined
+        ) {
+          updateFields.isAvailable =
+            true;
+        }
+      }
+
+      // --------------------------------------------------------
+      // AVAILABILITY
+      // --------------------------------------------------------
+
+      if (
+        isAvailable !== undefined
+      ) {
+        updateFields.isAvailable =
+          Boolean(
+            isAvailable
+          );
+      }
+
+      const updatedDish =
+        await Dish.findOneAndUpdate(
+          {
+            _id: id,
+            restaurantId,
+          },
+          {
+            $set:
+              updateFields,
+          },
+          {
+            new: true,
+            runValidators: true,
+          }
+        ).populate(
+          "category",
+          "name icon bgColor"
+        );
+
+      if (!updatedDish) {
+        return next(
+          createHttpError(
+            404,
+            "Dish not found!"
+          )
+        );
+      }
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Stock updated successfully!",
+        data:
+          updatedDish,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+// ============================================================
 // DELETE DISH
+// ADMIN ONLY
 // ============================================================
 
 const deleteDish = async (
@@ -338,11 +640,25 @@ const deleteDish = async (
 
     if (!restaurantId) return;
 
-    const { id } =
-      req.params;
+    if (
+      req.user?.role !== "Admin"
+    ) {
+      return next(
+        createHttpError(
+          403,
+          "Admin access required!"
+        )
+      );
+    }
+
+    const {
+      id,
+    } = req.params;
 
     if (
-      !mongoose.Types.ObjectId.isValid(id)
+      !mongoose.Types.ObjectId.isValid(
+        id
+      )
     ) {
       return next(
         createHttpError(
@@ -369,7 +685,8 @@ const deleteDish = async (
 
     return res.status(200).json({
       success: true,
-      message: "Dish deleted!",
+      message:
+        "Dish deleted!",
     });
   } catch (error) {
     next(error);
@@ -380,5 +697,6 @@ module.exports = {
   addDish,
   getDishes,
   updateDish,
+  updateDishStock,
   deleteDish,
 };

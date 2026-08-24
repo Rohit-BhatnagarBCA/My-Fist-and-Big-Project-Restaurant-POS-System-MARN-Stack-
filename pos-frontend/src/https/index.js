@@ -311,6 +311,29 @@ export const updateDish =
       data
     );
 
+    export const updateDishStock =
+  ({
+    dishId,
+    quantity,
+    isAvailable,
+  }) =>
+    axiosWrapper.patch(
+      `/api/dish/${dishId}/stock`,
+      {
+        ...(quantity !== undefined
+          ? {
+              quantity,
+            }
+          : {}),
+
+        ...(isAvailable !== undefined
+          ? {
+              isAvailable,
+            }
+          : {}),
+      }
+    );
+
 export const deleteDish =
   (dishId) =>
     axiosWrapper.delete(

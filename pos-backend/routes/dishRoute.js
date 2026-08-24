@@ -4,6 +4,7 @@ const {
   addDish,
   getDishes,
   updateDish,
+  updateDishStock,
   deleteDish,
 } = require("../controllers/dishController");
 
@@ -15,7 +16,11 @@ const {
 const router =
   express.Router();
 
-// View dishes — staff allowed.
+// ============================================================
+// GET DISHES
+// Admin / Waiter / Kitchen can view.
+// ============================================================
+
 router
   .route("/")
   .get(
@@ -23,7 +28,11 @@ router
     getDishes
   );
 
-// Dish management — Admin only.
+// ============================================================
+// ADD DISH
+// ADMIN ONLY
+// ============================================================
+
 router
   .route("/")
   .post(
@@ -32,6 +41,25 @@ router
     addDish
   );
 
+// ============================================================
+// KITCHEN STOCK UPDATE
+//
+// IMPORTANT:
+// This route must come BEFORE "/:id".
+// ============================================================
+
+router
+  .route("/:id/stock")
+  .patch(
+    isVerifiedUser,
+    updateDishStock
+  );
+
+// ============================================================
+// FULL DISH UPDATE
+// ADMIN ONLY
+// ============================================================
+
 router
   .route("/:id")
   .put(
@@ -39,6 +67,11 @@ router
     isAdmin,
     updateDish
   );
+
+// ============================================================
+// DELETE DISH
+// ADMIN ONLY
+// ============================================================
 
 router
   .route("/:id")
