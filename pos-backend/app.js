@@ -18,23 +18,34 @@ connectDB();
 app.use(
   cors({
     credentials: true,
-    origin: ["http://localhost:5173"],
+
+    origin: [
+      "http://localhost:5173",
+    ],
   })
 );
 
-app.use(express.json());
-app.use(cookieParser());
+app.use(
+  express.json()
+);
+
+app.use(
+  cookieParser()
+);
 
 // ============================================================
 // ROOT
 // ============================================================
 
-app.get("/", (req, res) => {
-  res.json({
-    message:
-      "Hello from POS Server!",
-  });
-});
+app.get(
+  "/",
+  (req, res) => {
+    res.json({
+      message:
+        "Hello from POS Server!",
+    });
+  }
+);
 
 // ============================================================
 // API ROUTES
@@ -70,10 +81,22 @@ app.use(
   require("./routes/dishRoute")
 );
 
-// Manual subscription requests
 app.use(
   "/api/subscription-request",
-  require("./routes/subscriptionRequestRoute")
+  require(
+    "./routes/subscriptionRequestRoute"
+  )
+);
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+app.use(
+  "/api/notification",
+  require(
+    "./routes/notificationRoute"
+  )
 );
 
 // ============================================================
@@ -88,8 +111,11 @@ app.use(
 // SERVER
 // ============================================================
 
-app.listen(PORT, () => {
-  console.log(
-    `☑️ POS Server is listening on port ${PORT}`
-  );
-});
+app.listen(
+  PORT,
+  () => {
+    console.log(
+      `☑️ POS Server is listening on port ${PORT}`
+    );
+  }
+);

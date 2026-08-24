@@ -311,7 +311,11 @@ export const updateDish =
       data
     );
 
-    export const updateDishStock =
+// ============================================================
+// KITCHEN — STOCK ONLY
+// ============================================================
+
+export const updateDishStock =
   ({
     dishId,
     quantity,

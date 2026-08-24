@@ -29,6 +29,7 @@ import {
   FiPauseCircle,
   FiPlayCircle,
   FiEye,
+  FiBell,
 } from "react-icons/fi";
 
 import {
@@ -39,6 +40,8 @@ import {
   getRestaurantById,
   updateRestaurantStatus,
 } from "../https";
+
+import NotificationComposer from "../components/superadmin/NotificationComposer";
 
 const getDateValue = (
   date
@@ -770,6 +773,11 @@ const SuperAdmin =
                 "Users",
                 <FiUsers />,
               ],
+              [
+                "notifications",
+                "Notifications",
+                <FiBell />,
+              ],
             ].map(
               ([
                 id,
@@ -1453,6 +1461,17 @@ const SuperAdmin =
           )}
 
         </main>
+
+        {/* ==================================================
+            NOTIFICATIONS
+           ================================================== */}
+
+        {activeTab ===
+          "notifications" && (
+          <section>
+            <NotificationComposer />
+          </section>
+        )}
 
         {/* ==================================================
             APPROVE MODAL

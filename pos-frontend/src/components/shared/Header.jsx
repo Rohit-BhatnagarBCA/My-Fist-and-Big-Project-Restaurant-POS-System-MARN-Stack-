@@ -1,4 +1,6 @@
-import React from "react";
+import React, {
+  useState,
+} from "react";
 
 import {
   motion,
@@ -28,10 +30,12 @@ import {
 
 import {
   useMutation,
+  useQuery,
 } from "@tanstack/react-query";
 
 import {
   logout,
+  getMyNotifications,
 } from "../../https";
 
 import {
@@ -39,9 +43,15 @@ import {
 } from "../../redux/slices/userSlice";
 
 import {
+  clearUnreadCount,
+} from "../../redux/slices/notificationSlice";
+
+import {
   useNavigate,
   useLocation,
 } from "react-router-dom";
+
+import NotificationPanel from "./NotificationPanel";
 
 const labelFont =
   "font-['Space_Mono',_monospace]";
@@ -74,7 +84,15 @@ const IconButton = ({
 const Header = () => {
   const userData =
     useSelector(
-      (state) => state.user
+      (state) =>
+        state.user
+    );
+
+  const unreadActivityCount =
+    useSelector(
+      (state) =>
+        state.notification
+          ?.unreadCount || 0
     );
 
   const dispatch =
@@ -86,10 +104,19 @@ const Header = () => {
   const location =
     useLocation();
 
+  const [
+    showNotifications,
+    setShowNotifications,
+  ] = useState(false);
+
+  // ==========================================================
+  // LOGOUT
+  // ==========================================================
+
   const logoutMutation =
     useMutation({
-      mutationFn:
-        () => logout(),
+      mutationFn: () =>
+        logout(),
 
       onSuccess: () => {
         dispatch(
@@ -104,14 +131,7 @@ const Header = () => {
         );
       },
 
-      onError: (error) => {
-        console.log(
-          "Logout error:",
-          error
-        );
-
-        // Clear local auth even if
-        // server request fails.
+      onError: () => {
         dispatch(
           removeUser()
         );
@@ -137,28 +157,58 @@ const Header = () => {
     };
 
   // ==========================================================
-  // RENEWAL REMINDER
+  // NOTIFICATION PREVIEW DATA
+  // ==========================================================
+
+  const {
+    data:
+      notificationResponse,
+  } = useQuery({
+    queryKey: [
+      "my-notifications",
+    ],
+
+    queryFn:
+      getMyNotifications,
+
+    refetchInterval:
+      10000,
+
+    enabled:
+      Boolean(
+        userData?.isAuth
+      ),
+  });
+
+  const notificationData =
+    notificationResponse
+      ?.data
+      ?.data || {};
+
+  const subscription =
+    notificationData.subscription ||
+    userData.subscription ||
+    null;
+
+  // ==========================================================
+  // EXPIRY
   // ==========================================================
 
   let daysUntilExpiry =
     null;
 
   if (
-    userData.role ===
-      "Admin" &&
-    userData.subscription
-      ?.expiryDate
+    subscription?.expiryDate
   ) {
-    const diffMs =
+    const diff =
       new Date(
-        userData.subscription
-          .expiryDate
+        subscription.expiryDate
       ) -
       new Date();
 
     daysUntilExpiry =
       Math.ceil(
-        diffMs /
+        diff /
           (1000 *
             60 *
             60 *
@@ -167,9 +217,32 @@ const Header = () => {
   }
 
   const showExpiryBanner =
-    daysUntilExpiry !== null &&
-    daysUntilExpiry <= 3 &&
-    daysUntilExpiry >= 0;
+    userData.role ===
+      "Admin" &&
+    daysUntilExpiry !==
+      null &&
+    daysUntilExpiry <=
+      3 &&
+    daysUntilExpiry >=
+      0;
+
+  const handleNotifications =
+    () => {
+      setShowNotifications(
+        true
+      );
+    };
+
+  const handleRenew =
+    () => {
+      setShowNotifications(
+        false
+      );
+
+      navigate(
+        "/about"
+      );
+    };
 
   return (
     <>
@@ -195,7 +268,7 @@ const Header = () => {
           />
 
           <h1
-            className={`hidden xs:block ${labelFont} text-sm tracking-[0.25em] text-[#F3EEE3]`}
+            className={`${labelFont} hidden xs:block text-sm tracking-[0.25em] text-[#F3EEE3]`}
           >
             RESTRO
           </h1>
@@ -206,6 +279,7 @@ const Header = () => {
            ================================================== */}
 
         <div className="hidden md:flex items-center gap-3 bg-[#242c38] rounded-full px-5 py-2.5 flex-1 max-w-[440px] border border-transparent focus-within:border-[#BD5D31] transition-colors">
+
           <FaSearch
             className="text-[#7d8797] shrink-0"
             size={14}
@@ -216,6 +290,7 @@ const Header = () => {
             placeholder="Search"
             className="bg-transparent outline-none text-[#F3EEE3] placeholder:text-[#7d8797] text-sm w-full"
           />
+
         </div>
 
         {/* ==================================================
@@ -265,15 +340,34 @@ const Header = () => {
             />
           </IconButton>
 
-          {/* Notifications */}
+          {/* ==================================================
+              NOTIFICATIONS
+             ================================================== */}
 
-          <IconButton
-            title="Notifications"
-          >
-            <FaBell
-              size={18}
-            />
-          </IconButton>
+          <div className="relative">
+
+            <IconButton
+              onClick={
+                handleNotifications
+              }
+              title="Notifications"
+            >
+              <FaBell
+                size={18}
+              />
+            </IconButton>
+
+            {unreadActivityCount >
+              0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-[#BD5D31] text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-[#1B222B]">
+                {unreadActivityCount >
+                99
+                  ? "99+"
+                  : unreadActivityCount}
+              </span>
+            )}
+
+          </div>
 
           {/* User */}
 
@@ -285,17 +379,21 @@ const Header = () => {
             />
 
             <div className="hidden sm:flex flex-col items-start">
+
               <h1 className="text-sm text-[#F3EEE3] font-semibold tracking-wide leading-tight">
-                {userData.name ||
-                  "TEST USER"}
+                {
+                  userData.name
+                }
               </h1>
 
               <p
                 className={`${labelFont} text-[10px] tracking-widest text-[#7d8797]`}
               >
-                {userData.role ||
-                  "ROLE"}
+                {
+                  userData.role
+                }
               </p>
+
             </div>
 
             {/* Logout */}
@@ -323,7 +421,9 @@ const Header = () => {
             </motion.button>
 
           </div>
+
         </div>
+
       </header>
 
       {/* ====================================================
@@ -349,10 +449,8 @@ const Header = () => {
           </span>
 
           <button
-            onClick={() =>
-              navigate(
-                "/about"
-              )
+            onClick={
+              handleRenew
             }
             className="bg-black/20 hover:bg-black/30 transition-colors px-3 py-1 rounded-md text-xs font-bold shrink-0"
           >
@@ -360,6 +458,23 @@ const Header = () => {
           </button>
 
         </div>
+      )}
+
+      {/* ====================================================
+          NOTIFICATION PANEL
+         ==================================================== */}
+
+      {showNotifications && (
+        <NotificationPanel
+          onClose={() =>
+            setShowNotifications(
+              false
+            )
+          }
+          onRenew={
+            handleRenew
+          }
+        />
       )}
     </>
   );
