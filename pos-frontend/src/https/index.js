@@ -421,3 +421,37 @@ export const sendNotification =
       "/api/notification/send",
       data
     );
+
+
+export const getMyTax = () =>
+  axiosWrapper.get(
+    "/api/restaurant/my/tax"
+  );
+
+export const updateMyTax = (
+  taxRate
+) =>
+  axiosWrapper.patch(
+    "/api/restaurant/my/tax",
+    {
+      taxRate,
+    }
+  );
+
+export const verifyEmail = (
+  data
+) =>
+  axiosWrapper.post(
+    "/api/user/verify-email",
+    data
+  );
+
+export const resendVerificationOtp = (
+  email
+) =>
+  axiosWrapper.post(
+    "/api/user/resend-verification",
+    {
+      email,
+    }
+  );

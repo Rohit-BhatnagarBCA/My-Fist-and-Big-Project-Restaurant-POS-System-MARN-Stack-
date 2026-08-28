@@ -736,6 +736,184 @@ const updateRestaurantStatus =
     }
   };
 
+  const createHttpError =
+  require("http-errors");
+
+const Restaurant =
+  require("../models/restaurantModel");
+
+// ======================================================
+// GET MY TAX
+// ======================================================
+
+const getMyTax =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      if (
+        !req.user?.restaurantId
+      ) {
+        return next(
+          createHttpError(
+            403,
+            "Your account is not linked to a restaurant."
+          )
+        );
+      }
+
+      const restaurant =
+        await Restaurant.findById(
+          req.user.restaurantId
+        ).select(
+          "taxRate name"
+        );
+
+      if (!restaurant) {
+        return next(
+          createHttpError(
+            404,
+            "Restaurant not found."
+          )
+        );
+      }
+
+      return res.status(200).json({
+        success:
+          true,
+
+        data: {
+          taxRate:
+            restaurant.taxRate ||
+            0,
+
+          restaurantName:
+            restaurant.name,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+// ======================================================
+// UPDATE MY TAX
+// ======================================================
+
+const updateMyTax =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      if (
+        !req.user?.restaurantId
+      ) {
+        return next(
+          createHttpError(
+            403,
+            "Your account is not linked to a restaurant."
+          )
+        );
+      }
+
+      if (
+        req.user.role !==
+        "Admin"
+      ) {
+        return next(
+          createHttpError(
+            403,
+            "Only restaurant Admin can change tax settings."
+          )
+        );
+      }
+
+      const numericTax =
+        Number(
+          req.body.taxRate
+        );
+
+      if (
+        !Number.isFinite(
+          numericTax
+        )
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Tax rate must be a valid number."
+          )
+        );
+      }
+
+      if (
+        numericTax < 0 ||
+        numericTax > 100
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Tax rate must be between 0 and 100."
+          )
+        );
+      }
+
+      const roundedTax =
+        Math.round(
+          numericTax * 100
+        ) / 100;
+
+      const restaurant =
+        await Restaurant.findByIdAndUpdate(
+          req.user.restaurantId,
+          {
+            $set: {
+              taxRate:
+                roundedTax,
+            },
+          },
+          {
+            new: true,
+            runValidators:
+              true,
+          }
+        ).select(
+          "taxRate name"
+        );
+
+      if (!restaurant) {
+        return next(
+          createHttpError(
+            404,
+            "Restaurant not found."
+          )
+        );
+      }
+
+      return res.status(200).json({
+        success:
+          true,
+
+        message:
+          "Tax rate updated successfully.",
+
+        data: {
+          taxRate:
+            restaurant.taxRate,
+
+          restaurantName:
+            restaurant.name,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
 module.exports = {
   createRestaurant,
   getMyRestaurant,
@@ -744,4 +922,7 @@ module.exports = {
   getAllRestaurants,
   getRestaurantById,
   updateRestaurantStatus,
+
+  getMyTax,
+  updateMyTax,
 };

@@ -105,6 +105,8 @@ const userSchema =
           type: String,
           default: null,
         },
+
+        
       },
     },
     {
@@ -138,7 +140,10 @@ userSchema.pre(
   }
 );
 
+
+
 module.exports = mongoose.model(
   "User",
   userSchema
 );
+

@@ -132,4 +132,14 @@ router.patch(
   updateUserSubscription
 );
 
+router.post(
+  "/verify-email",
+  verifyEmail
+);
+
+router.post(
+  "/resend-verification",
+  resendVerificationOtp
+);
+
 module.exports = router;
