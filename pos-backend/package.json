@@ -2,11 +2,12 @@
   "name": "pos-backend",
   "version": "1.0.0",
   "main": "index.js",
-"scripts": {
+ "scripts": {
   "dev": "nodemon app.js",
   "start": "node app.js",
   "create:superadmin": "node scripts/createSuperAdmin.js",
-  "migrate:restaurant": "node scripts/migrateLegacyRestaurant.js"
+  "migrate:restaurant": "node scripts/migrateLegacyRestaurant.js",
+  "reset:db": "node scripts/resetDatabase.js"
 },
   "keywords": [],
   "author": "",
@@ -21,10 +22,10 @@
     "express": "^4.22.2",
     "http-errors": "^2.0.0",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^8.24.1"
+    "mongoose": "^8.24.1",
+    "nodemailer": "^9.0.6"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
   }
-  
 }

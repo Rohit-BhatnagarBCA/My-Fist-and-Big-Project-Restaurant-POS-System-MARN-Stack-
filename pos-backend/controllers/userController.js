@@ -1,208 +1,27 @@
-const createHttpError = require("http-errors");
-const User = require("../models/userModel");
-const Restaurant = require("../models/restaurantModel");
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const config = require("../config/config");
+const createHttpError =
+  require("http-errors");
 
-// ======================================================
-// REGISTER
-// Public registration creates a RESTAURANT ADMIN account.
-// SuperAdmin / Waiter / Kitchen cannot be created here.
-// ======================================================
+const User =
+  require("../models/userModel");
 
-const register = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const {
-      name,
-      restaurantName,
-      phone,
-      email,
-      password,
-    } = req.body;
+const Restaurant =
+  require("../models/restaurantModel");
 
-    if (
-      !name ||
-      !restaurantName ||
-      !phone ||
-      !email ||
-      !password
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Name, restaurant name, phone, email and password are required!"
-        )
-      );
-    }
+const bcrypt =
+  require("bcrypt");
 
-    const cleanName =
-      String(name).trim();
+const jwt =
+  require("jsonwebtoken");
 
-    const cleanRestaurantName =
-      String(restaurantName).trim();
+const config =
+  require("../config/config");
 
-    const cleanEmail =
-      String(email)
-        .trim()
-        .toLowerCase();
-
-    const cleanPhone =
-      String(phone).replace(
-        /\D/g,
-        ""
-      );
-
-    if (!cleanName) {
-      return next(
-        createHttpError(
-          400,
-          "Name is required!"
-        )
-      );
-    }
-
-    if (!cleanRestaurantName) {
-      return next(
-        createHttpError(
-          400,
-          "Restaurant name is required!"
-        )
-      );
-    }
-
-    if (
-      cleanRestaurantName.length >
-      120
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Restaurant name cannot exceed 120 characters!"
-        )
-      );
-    }
-
-    if (
-      !/^\d{10}$/.test(
-        cleanPhone
-      )
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Phone number must be exactly 10 digits!"
-        )
-      );
-    }
-
-    if (
-      !/\S+@\S+\.\S+/.test(
-        cleanEmail
-      )
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Please provide a valid email address!"
-        )
-      );
-    }
-
-    const existingUser =
-      await User.findOne({
-        email: cleanEmail,
-      });
-
-    if (existingUser) {
-      return next(
-        createHttpError(
-          400,
-          "An account with this email already exists!"
-        )
-      );
-    }
-
-    const user =
-      new User({
-        name: cleanName,
-        phone: cleanPhone,
-        email: cleanEmail,
-        password,
-        role: "Admin",
-      });
-
-    await user.save();
-
-    let restaurant;
-
-    try {
-      restaurant =
-        await Restaurant.create({
-          name:
-            cleanRestaurantName,
-          owner: user._id,
-          status: "pending",
-        });
-    } catch (error) {
-      await User.findByIdAndDelete(
-        user._id
-      );
-
-      throw error;
-    }
-
-    try {
-      await User.updateOne(
-        {
-          _id: user._id,
-        },
-        {
-          $set: {
-            restaurantId:
-              restaurant._id,
-          },
-        }
-      );
-    } catch (error) {
-      await Restaurant.findByIdAndDelete(
-        restaurant._id
-      );
-
-      await User.findByIdAndDelete(
-        user._id
-      );
-
-      throw error;
-    }
-
-    const safeUser =
-      await User.findById(
-        user._id
-      )
-        .select("-password")
-        .populate(
-          "restaurantId",
-          "name status subscription owner"
-        );
-
-    return res.status(201).json({
-      success: true,
-      message:
-        "Restaurant account created successfully! Please login.",
-      data: {
-        user: safeUser,
-        restaurant,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+const {
+  generateOtp,
+  hashOtp,
+  sendVerificationEmail,
+} =
+  require("../utils/emailService");
 
 // ======================================================
 // LOGIN
@@ -285,20 +104,39 @@ const login = async (
       );
     }
 
+    // New Admin accounts must verify email.
+    // Existing legacy/staff accounts remain usable.
+    if (
+      matchedUser.role ===
+        "Admin" &&
+      matchedUser.emailVerified ===
+        false
+    ) {
+      return next(
+        createHttpError(
+          403,
+          "Please verify your email before logging in."
+        )
+      );
+    }
+
     const accessToken =
       jwt.sign(
         {
           _id:
             matchedUser._id,
         },
+
         config.accessTokenSecret,
+
         {
-          expiresIn: "1d",
+          expiresIn:
+            "1d",
         }
       );
 
     // ======================================================
-    // LOCALHOST / PRODUCTION COOKIE SETTINGS
+    // COOKIE
     // ======================================================
 
     const isProduction =
@@ -316,7 +154,8 @@ const login = async (
           24 *
           30,
 
-        httpOnly: true,
+        httpOnly:
+          true,
 
         sameSite:
           isProduction
@@ -332,10 +171,14 @@ const login = async (
       undefined;
 
     return res.status(200).json({
-      success: true,
+      success:
+        true,
+
       message:
         "User login successfully!",
-      data: matchedUser,
+
+      data:
+        matchedUser,
     });
   } catch (error) {
     next(error);
@@ -346,82 +189,91 @@ const login = async (
 // GET CURRENT USER
 // ======================================================
 
-const getUserData = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const user =
-      await User.findById(
-        req.user._id
-      )
-        .select("-password")
-        .populate(
-          "restaurantId",
-          "name status subscription owner"
-        );
-
-    if (!user) {
-      return next(
-        createHttpError(
-          404,
-          "User not found!"
+const getUserData =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      const user =
+        await User.findById(
+          req.user._id
         )
-      );
-    }
+          .select(
+            "-password"
+          )
+          .populate(
+            "restaurantId",
+            "name status subscription owner"
+          );
 
-    return res.status(200).json({
-      success: true,
-      data: user,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+      if (!user) {
+        return next(
+          createHttpError(
+            404,
+            "User not found!"
+          )
+        );
+      }
+
+      return res.status(200).json({
+        success:
+          true,
+
+        data:
+          user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 
 // ======================================================
 // LOGOUT
 // ======================================================
 
-const logout = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const isProduction =
-      process.env.NODE_ENV ===
-      "production";
+const logout =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      const isProduction =
+        process.env.NODE_ENV ===
+        "production";
 
-    res.clearCookie(
-      "accessToken",
-      {
-        httpOnly: true,
+      res.clearCookie(
+        "accessToken",
+        {
+          httpOnly:
+            true,
 
-        sameSite:
-          isProduction
-            ? "none"
-            : "lax",
+          sameSite:
+            isProduction
+              ? "none"
+              : "lax",
 
-        secure:
-          isProduction,
-      }
-    );
+          secure:
+            isProduction,
+        }
+      );
 
-    return res.status(200).json({
-      success: true,
-      message:
-        "User logout successfully!",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+      return res.status(200).json({
+        success:
+          true,
+
+        message:
+          "User logout successfully!",
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 
 // ======================================================
 // MY PROFILE
-// Works even without subscription.
 // ======================================================
 
 const getMyProfile =
@@ -435,7 +287,9 @@ const getMyProfile =
         await User.findById(
           req.user._id
         )
-          .select("-password")
+          .select(
+            "-password"
+          )
           .populate(
             "restaurantId",
             "name status subscription owner"
@@ -451,8 +305,11 @@ const getMyProfile =
       }
 
       return res.status(200).json({
-        success: true,
-        data: user,
+        success:
+          true,
+
+        data:
+          user,
       });
     } catch (error) {
       next(error);
@@ -461,7 +318,6 @@ const getMyProfile =
 
 // ======================================================
 // UPDATE MY PROFILE
-//
 // Email / role / restaurant cannot be changed.
 // ======================================================
 
@@ -480,12 +336,12 @@ const updateMyProfile =
       const updates = {};
 
       if (
-        name !== undefined
+        name !==
+        undefined
       ) {
         const cleanName =
-          String(
-            name
-          ).trim();
+          String(name)
+            .trim();
 
         if (!cleanName) {
           return next(
@@ -501,15 +357,15 @@ const updateMyProfile =
       }
 
       if (
-        phone !== undefined
+        phone !==
+        undefined
       ) {
         const cleanPhone =
-          String(
-            phone
-          ).replace(
-            /\D/g,
-            ""
-          );
+          String(phone)
+            .replace(
+              /\D/g,
+              ""
+            );
 
         if (
           !/^\d{10}$/.test(
@@ -545,14 +401,20 @@ const updateMyProfile =
         await User.findByIdAndUpdate(
           req.user._id,
           {
-            $set: updates,
+            $set:
+              updates,
           },
           {
-            new: true,
-            runValidators: true,
+            new:
+              true,
+
+            runValidators:
+              true,
           }
         )
-          .select("-password")
+          .select(
+            "-password"
+          )
           .populate(
             "restaurantId",
             "name status subscription owner"
@@ -568,9 +430,12 @@ const updateMyProfile =
       }
 
       return res.status(200).json({
-        success: true,
+        success:
+          true,
+
         message:
           "Profile updated successfully.",
+
         data:
           updatedUser,
       });
@@ -621,6 +486,7 @@ const changePassword =
         );
       }
 
+      // FIXED
       if (
         newPassword.length <
         6
@@ -697,7 +563,9 @@ const changePassword =
       );
 
       return res.status(200).json({
-        success: true,
+        success:
+          true,
+
         message:
           "Password changed successfully.",
       });
@@ -710,368 +578,88 @@ const changePassword =
 // ADMIN — CREATE STAFF
 // ======================================================
 
-const createStaff = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    if (
-      !req.user?.restaurantId
-    ) {
-      return next(
-        createHttpError(
-          403,
-          "Your account is not linked to a restaurant."
-        )
-      );
-    }
-
-    if (
-      req.user.role !==
-      "Admin"
-    ) {
-      return next(
-        createHttpError(
-          403,
-          "Only restaurant Admins can manage staff."
-        )
-      );
-    }
-
-    const {
-      name,
-      email,
-      phone,
-      password,
-      role,
-    } = req.body;
-
-    if (
-      !name ||
-      !email ||
-      !phone ||
-      !password ||
-      !role
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "All staff fields are required."
-        )
-      );
-    }
-
-    if (
-      !["Waiter", "Kitchen"].includes(
-        role
-      )
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Staff role must be Waiter or Kitchen."
-        )
-      );
-    }
-
-    const cleanName =
-      String(name).trim();
-
-    const normalizedEmail =
-      String(email)
-        .trim()
-        .toLowerCase();
-
-    const cleanPhone =
-      String(phone).replace(
-        /\D/g,
-        ""
-      );
-
-    if (
-      !/^\d{10}$/.test(
-        cleanPhone
-      )
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Phone number must be exactly 10 digits."
-        )
-      );
-    }
-
-    if (
-      !/\S+@\S+\.\S+/.test(
-        normalizedEmail
-      )
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Please provide a valid email address."
-        )
-      );
-    }
-
-    const existingUser =
-      await User.findOne({
-        email:
-          normalizedEmail,
-      });
-
-    if (existingUser) {
-      return next(
-        createHttpError(
-          400,
-          "An account with this email already exists."
-        )
-      );
-    }
-
-    const staff =
-      new User({
-        name:
-          cleanName,
-
-        email:
-          normalizedEmail,
-
-        phone:
-          cleanPhone,
-
-        password,
-
-        role,
-
-        restaurantId:
-          req.user.restaurantId,
-      });
-
-    await staff.save();
-
-    staff.password =
-      undefined;
-
-    return res.status(201).json({
-      success: true,
-      message:
-        `${role} account created successfully.`,
-      data: staff,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ======================================================
-// ADMIN — GET MY STAFF
-// ======================================================
-
-const getMyStaff = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    if (
-      !req.user?.restaurantId
-    ) {
-      return next(
-        createHttpError(
-          403,
-          "Your account is not linked to a restaurant."
-        )
-      );
-    }
-
-    if (
-      req.user.role !==
-      "Admin"
-    ) {
-      return next(
-        createHttpError(
-          403,
-          "Only restaurant Admins can view staff."
-        )
-      );
-    }
-
-    const staff =
-      await User.find({
-        restaurantId:
-          req.user.restaurantId,
-
-        role: {
-          $in: [
-            "Waiter",
-            "Kitchen",
-          ],
-        },
-      })
-        .select("-password")
-        .sort({
-          createdAt: -1,
-        });
-
-    const counts = {
-      total:
-        staff.length,
-
-      waiter:
-        staff.filter(
-          (user) =>
-            user.role ===
-            "Waiter"
-        ).length,
-
-      kitchen:
-        staff.filter(
-          (user) =>
-            user.role ===
-            "Kitchen"
-        ).length,
-    };
-
-    return res.status(200).json({
-      success: true,
-      counts,
-      data: staff,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ======================================================
-// ADMIN — UPDATE STAFF
-// ======================================================
-
-const updateStaff = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    if (
-      !req.user?.restaurantId
-    ) {
-      return next(
-        createHttpError(
-          403,
-          "Your account is not linked to a restaurant."
-        )
-      );
-    }
-
-    if (
-      req.user.role !==
-      "Admin"
-    ) {
-      return next(
-        createHttpError(
-          403,
-          "Only restaurant Admins can update staff."
-        )
-      );
-    }
-
-    const {
-      id,
-    } = req.params;
-
-    const {
-      name,
-      phone,
-      role,
-    } = req.body;
-
-    if (
-      !id ||
-      !/^[0-9a-fA-F]{24}$/.test(
-        id
-      )
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Invalid staff ID."
-        )
-      );
-    }
-
-    if (
-      role !== undefined &&
-      !["Waiter", "Kitchen"].includes(
-        role
-      )
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Staff role must be Waiter or Kitchen."
-        )
-      );
-    }
-
-    const staff =
-      await User.findOne({
-        _id: id,
-
-        restaurantId:
-          req.user.restaurantId,
-
-        role: {
-          $in: [
-            "Waiter",
-            "Kitchen",
-          ],
-        },
-      });
-
-    if (!staff) {
-      return next(
-        createHttpError(
-          404,
-          "Staff member not found in your restaurant."
-        )
-      );
-    }
-
-    const updates = {};
-
-    if (
-      name !== undefined
-    ) {
-      const cleanName =
-        String(
-          name
-        ).trim();
-
-      if (!cleanName) {
+const createStaff =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      if (
+        !req.user?.restaurantId
+      ) {
         return next(
           createHttpError(
-            400,
-            "Name cannot be empty."
+            403,
+            "Your account is not linked to a restaurant."
           )
         );
       }
 
-      updates.name =
-        cleanName;
-    }
-
-    if (
-      phone !== undefined
-    ) {
-      const cleanPhone =
-        String(
-          phone
-        ).replace(
-          /\D/g,
-          ""
+      if (
+        req.user.role !==
+        "Admin"
+      ) {
+        return next(
+          createHttpError(
+            403,
+            "Only restaurant Admins can manage staff."
+          )
         );
+      }
+
+      const {
+        name,
+        email,
+        phone,
+        password,
+        role,
+      } = req.body;
+
+      if (
+        !name ||
+        !email ||
+        !phone ||
+        !password ||
+        !role
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "All staff fields are required."
+          )
+        );
+      }
+
+      if (
+        ![
+          "Waiter",
+          "Kitchen",
+        ].includes(role)
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Staff role must be Waiter or Kitchen."
+          )
+        );
+      }
+
+      const cleanName =
+        String(name)
+          .trim();
+
+      const normalizedEmail =
+        String(email)
+          .trim()
+          .toLowerCase();
+
+      const cleanPhone =
+        String(phone)
+          .replace(
+            /\D/g,
+            ""
+          );
 
       if (
         !/^\d{10}$/.test(
@@ -1086,34 +674,243 @@ const updateStaff = async (
         );
       }
 
-      updates.phone =
-        cleanPhone;
-    }
-
-    if (
-      role !== undefined
-    ) {
-      updates.role =
-        role;
-    }
-
-    if (
-      Object.keys(
-        updates
-      ).length === 0
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "No changes provided."
+      if (
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+          normalizedEmail
         )
-      );
-    }
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Please provide a valid email address."
+          )
+        );
+      }
 
-    const updatedStaff =
-      await User.findOneAndUpdate(
-        {
-          _id: id,
+      const existingUser =
+        await User.findOne({
+          email:
+            normalizedEmail,
+        });
+
+      if (existingUser) {
+        return next(
+          createHttpError(
+            400,
+            "An account with this email already exists."
+          )
+        );
+      }
+
+      const staff =
+        new User({
+          name:
+            cleanName,
+
+          email:
+            normalizedEmail,
+
+          phone:
+            cleanPhone,
+
+          password,
+
+          role,
+
+          restaurantId:
+            req.user.restaurantId,
+
+          // Staff accounts are created internally
+          // by Admin, so verification is not required.
+          emailVerified:
+            true,
+        });
+
+      await staff.save();
+
+      staff.password =
+        undefined;
+
+      return res.status(201).json({
+        success:
+          true,
+
+        message:
+          `${role} account created successfully.`,
+
+        data:
+          staff,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+// ======================================================
+// ADMIN — GET MY STAFF
+// ======================================================
+
+const getMyStaff =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      if (
+        !req.user?.restaurantId
+      ) {
+        return next(
+          createHttpError(
+            403,
+            "Your account is not linked to a restaurant."
+          )
+        );
+      }
+
+      if (
+        req.user.role !==
+        "Admin"
+      ) {
+        return next(
+          createHttpError(
+            403,
+            "Only restaurant Admins can view staff."
+          )
+        );
+      }
+
+      const staff =
+        await User.find({
+          restaurantId:
+            req.user.restaurantId,
+
+          role: {
+            $in: [
+              "Waiter",
+              "Kitchen",
+            ],
+          },
+        })
+          .select(
+            "-password"
+          )
+          .sort({
+            createdAt:
+              -1,
+          });
+
+      const counts = {
+        total:
+          staff.length,
+
+        waiter:
+          staff.filter(
+            (user) =>
+              user.role ===
+              "Waiter"
+          ).length,
+
+        kitchen:
+          staff.filter(
+            (user) =>
+              user.role ===
+              "Kitchen"
+          ).length,
+      };
+
+      return res.status(200).json({
+        success:
+          true,
+
+        counts,
+
+        data:
+          staff,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+// ======================================================
+// ADMIN — UPDATE STAFF
+// ======================================================
+
+const updateStaff =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      if (
+        !req.user?.restaurantId
+      ) {
+        return next(
+          createHttpError(
+            403,
+            "Your account is not linked to a restaurant."
+          )
+        );
+      }
+
+      if (
+        req.user.role !==
+        "Admin"
+      ) {
+        return next(
+          createHttpError(
+            403,
+            "Only restaurant Admins can update staff."
+          )
+        );
+      }
+
+      const {
+        id,
+      } = req.params;
+
+      const {
+        name,
+        phone,
+        role,
+      } = req.body;
+
+      if (
+        !id ||
+        !/^[0-9a-fA-F]{24}$/.test(
+          id
+        )
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Invalid staff ID."
+          )
+        );
+      }
+
+      if (
+        role !==
+          undefined &&
+        ![
+          "Waiter",
+          "Kitchen",
+        ].includes(role)
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Staff role must be Waiter or Kitchen."
+          )
+        );
+      }
+
+      const staff =
+        await User.findOne({
+          _id:
+            id,
 
           restaurantId:
             req.user.restaurantId,
@@ -1124,153 +921,272 @@ const updateStaff = async (
               "Kitchen",
             ],
           },
-        },
-        {
-          $set: updates,
-        },
-        {
-          new: true,
-          runValidators: true,
-        }
-      ).select(
-        "-password"
-      );
+        });
 
-    return res.status(200).json({
-      success: true,
-      message:
-        "Staff updated successfully.",
-      data:
-        updatedStaff,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+      if (!staff) {
+        return next(
+          createHttpError(
+            404,
+            "Staff member not found in your restaurant."
+          )
+        );
+      }
+
+      const updates = {};
+
+      if (
+        name !==
+        undefined
+      ) {
+        const cleanName =
+          String(name)
+            .trim();
+
+        if (!cleanName) {
+          return next(
+            createHttpError(
+              400,
+              "Name cannot be empty."
+            )
+          );
+        }
+
+        updates.name =
+          cleanName;
+      }
+
+      if (
+        phone !==
+        undefined
+      ) {
+        const cleanPhone =
+          String(phone)
+            .replace(
+              /\D/g,
+              ""
+            );
+
+        if (
+          !/^\d{10}$/.test(
+            cleanPhone
+          )
+        ) {
+          return next(
+            createHttpError(
+              400,
+              "Phone number must be exactly 10 digits."
+            )
+          );
+        }
+
+        updates.phone =
+          cleanPhone;
+      }
+
+      if (
+        role !==
+        undefined
+      ) {
+        updates.role =
+          role;
+      }
+
+      if (
+        Object.keys(
+          updates
+        ).length === 0
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "No changes provided."
+          )
+        );
+      }
+
+      const updatedStaff =
+        await User.findOneAndUpdate(
+          {
+            _id:
+              id,
+
+            restaurantId:
+              req.user.restaurantId,
+
+            role: {
+              $in: [
+                "Waiter",
+                "Kitchen",
+              ],
+            },
+          },
+          {
+            $set:
+              updates,
+          },
+          {
+            new:
+              true,
+
+            runValidators:
+              true,
+          }
+        )
+          .select(
+            "-password"
+          );
+
+      return res.status(200).json({
+        success:
+          true,
+
+        message:
+          "Staff updated successfully.",
+
+        data:
+          updatedStaff,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 
 // ======================================================
 // ADMIN — DELETE STAFF
 // ======================================================
 
-const deleteStaff = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    if (
-      !req.user?.restaurantId
-    ) {
-      return next(
-        createHttpError(
-          403,
-          "Your account is not linked to a restaurant."
+const deleteStaff =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      if (
+        !req.user?.restaurantId
+      ) {
+        return next(
+          createHttpError(
+            403,
+            "Your account is not linked to a restaurant."
+          )
+        );
+      }
+
+      if (
+        req.user.role !==
+        "Admin"
+      ) {
+        return next(
+          createHttpError(
+            403,
+            "Only restaurant Admins can remove staff."
+          )
+        );
+      }
+
+      const {
+        id,
+      } = req.params;
+
+      if (
+        !id ||
+        !/^[0-9a-fA-F]{24}$/.test(
+          id
         )
-      );
-    }
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Invalid staff ID."
+          )
+        );
+      }
 
-    if (
-      req.user.role !==
-      "Admin"
-    ) {
-      return next(
-        createHttpError(
-          403,
-          "Only restaurant Admins can remove staff."
-        )
-      );
-    }
+      const staff =
+        await User.findOne({
+          _id:
+            id,
 
-    const {
-      id,
-    } = req.params;
+          restaurantId:
+            req.user.restaurantId,
 
-    if (
-      !id ||
-      !/^[0-9a-fA-F]{24}$/.test(
-        id
-      )
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Invalid staff ID."
-        )
-      );
-    }
+          role: {
+            $in: [
+              "Waiter",
+              "Kitchen",
+            ],
+          },
+        });
 
-    const staff =
-      await User.findOne({
-        _id: id,
+      if (!staff) {
+        return next(
+          createHttpError(
+            404,
+            "Staff member not found in your restaurant."
+          )
+        );
+      }
+
+      await User.deleteOne({
+        _id:
+          id,
 
         restaurantId:
           req.user.restaurantId,
-
-        role: {
-          $in: [
-            "Waiter",
-            "Kitchen",
-          ],
-        },
       });
 
-    if (!staff) {
-      return next(
-        createHttpError(
-          404,
-          "Staff member not found in your restaurant."
-        )
-      );
+      return res.status(200).json({
+        success:
+          true,
+
+        message:
+          "Staff account removed successfully.",
+      });
+    } catch (error) {
+      next(error);
     }
-
-    await User.deleteOne({
-      _id: id,
-
-      restaurantId:
-        req.user.restaurantId,
-    });
-
-    return res.status(200).json({
-      success: true,
-      message:
-        "Staff account removed successfully.",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+  };
 
 // ======================================================
 // SUPER ADMIN — GET ALL USERS
 // ======================================================
 
-const getAllUsers = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const users =
-      await User.find({})
-        .populate(
-          "restaurantId",
-          "name status subscription"
-        )
-        .select("-password")
-        .sort({
-          createdAt: -1,
-        });
+const getAllUsers =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      const users =
+        await User.find({})
+          .populate(
+            "restaurantId",
+            "name status subscription"
+          )
+          .select(
+            "-password"
+          )
+          .sort({
+            createdAt:
+              -1,
+          });
 
-    return res.status(200).json({
-      success: true,
-      count:
-        users.length,
-      data: users,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+      return res.status(200).json({
+        success:
+          true,
+
+        count:
+          users.length,
+
+        data:
+          users,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 
 // ======================================================
 // SUPER ADMIN — UPDATE USER SUBSCRIPTION
@@ -1335,7 +1251,8 @@ const updateUserSubscription =
       if (
         user.role ===
           "SuperAdmin" &&
-        isActive === false
+        isActive ===
+          false
       ) {
         return next(
           createHttpError(
@@ -1381,14 +1298,16 @@ const updateUserSubscription =
       }
 
       const subscription =
-        user.subscription?.toObject
+        user.subscription
+          ?.toObject
           ? user.subscription.toObject()
           : user.subscription ||
             {};
 
       await User.updateOne(
         {
-          _id: user._id,
+          _id:
+            user._id,
         },
         {
           $set: {
@@ -1438,7 +1357,8 @@ const updateUserSubscription =
           );
 
       return res.status(200).json({
-        success: true,
+        success:
+          true,
 
         message:
           isActive
@@ -1453,299 +1373,288 @@ const updateUserSubscription =
     }
   };
 
-  const createHttpError =
-  require("http-errors");
-
-const User =
-  require("../models/userModel");
-
-const Restaurant =
-  require("../models/restaurantModel");
-
-const bcrypt =
-  require("bcrypt");
-
-const {
-  generateOtp,
-  hashOtp,
-  sendVerificationEmail,
-} = require("../utils/emailService");
-
 // ======================================================
-// REGISTER
+// REGISTER — EMAIL OTP VERIFICATION
 // ======================================================
 
-const register = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const {
-      name,
-      restaurantName,
-      phone,
-      email,
-      password,
-    } = req.body;
-
-    if (
-      !name ||
-      !restaurantName ||
-      !phone ||
-      !email ||
-      !password
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Name, restaurant name, phone, email and password are required!"
-        )
-      );
-    }
-
-    const cleanName =
-      String(name).trim();
-
-    const cleanRestaurantName =
-      String(
-        restaurantName
-      ).trim();
-
-    const cleanEmail =
-      String(email)
-        .trim()
-        .toLowerCase();
-
-    const cleanPhone =
-      String(phone).replace(
-        /\D/g,
-        ""
-      );
-
-    if (
-      !cleanName
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Name is required!"
-        )
-      );
-    }
-
-    if (
-      !cleanRestaurantName
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Restaurant name is required!"
-        )
-      );
-    }
-
-    if (
-      cleanRestaurantName.length >
-      120
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Restaurant name cannot exceed 120 characters!"
-        )
-      );
-    }
-
-    if (
-      !/^\d{10}$/.test(
-        cleanPhone
-      )
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Phone number must be exactly 10 digits!"
-        )
-      );
-    }
-
-    if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-        cleanEmail
-      )
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Please provide a valid email address!"
-        )
-      );
-    }
-
-    if (
-      String(password).length <
-      6
-    ) {
-      return next(
-        createHttpError(
-          400,
-          "Password must contain at least 6 characters!"
-        )
-      );
-    }
-
-    const existingUser =
-      await User.findOne({
-        email:
-          cleanEmail,
-      });
-
-    if (existingUser) {
-      return next(
-        createHttpError(
-          400,
-          existingUser.emailVerified ===
-            false
-            ? "An account with this email already exists. Please verify your email."
-            : "An account with this email already exists!"
-        )
-      );
-    }
-
-    const otp =
-      generateOtp();
-
-    const user =
-      new User({
-        name:
-          cleanName,
-
-        phone:
-          cleanPhone,
-
-        email:
-          cleanEmail,
-
+const register =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      const {
+        name,
+        restaurantName,
+        phone,
+        email,
         password,
+      } = req.body;
 
-        role:
-          "Admin",
+      if (
+        !name ||
+        !restaurantName ||
+        !phone ||
+        !email ||
+        !password
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Name, restaurant name, phone, email and password are required!"
+          )
+        );
+      }
 
-        emailVerified:
-          false,
+      const cleanName =
+        String(name)
+          .trim();
 
-        emailVerificationOtpHash:
-          hashOtp(otp),
+      const cleanRestaurantName =
+        String(
+          restaurantName
+        ).trim();
 
-        emailVerificationExpiresAt:
-          new Date(
-            Date.now() +
-              10 *
-                60 *
-                1000
-          ),
-      });
+      const cleanEmail =
+        String(email)
+          .trim()
+          .toLowerCase();
 
-    await user.save();
+      const cleanPhone =
+        String(phone)
+          .replace(
+            /\D/g,
+            ""
+          );
 
-    let restaurant;
+      if (
+        !cleanName
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Name is required!"
+          )
+        );
+      }
 
-    try {
-      restaurant =
-        await Restaurant.create({
-          name:
-            cleanRestaurantName,
+      if (
+        !cleanRestaurantName
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Restaurant name is required!"
+          )
+        );
+      }
 
-          owner:
-            user._id,
+      if (
+        cleanRestaurantName.length >
+        120
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Restaurant name cannot exceed 120 characters!"
+          )
+        );
+      }
 
-          status:
-            "pending",
-        });
-    } catch (error) {
-      await User.findByIdAndDelete(
-        user._id
-      );
-
-      throw error;
-    }
-
-    try {
-      await User.updateOne(
-        {
-          _id:
-            user._id,
-        },
-        {
-          $set: {
-            restaurantId:
-              restaurant._id,
-          },
-        }
-      );
-    } catch (error) {
-      await Restaurant.findByIdAndDelete(
-        restaurant._id
-      );
-
-      await User.findByIdAndDelete(
-        user._id
-      );
-
-      throw error;
-    }
-
-    try {
-      await sendVerificationEmail({
-        email:
-          cleanEmail,
-
-        name:
-          cleanName,
-
-        otp,
-      });
-    } catch (emailError) {
-      await Restaurant.findByIdAndDelete(
-        restaurant._id
-      );
-
-      await User.findByIdAndDelete(
-        user._id
-      );
-
-      console.error(
-        "Verification email failed:",
-        emailError
-      );
-
-      return next(
-        createHttpError(
-          500,
-          "Unable to send verification email. Please try again."
+      if (
+        !/^\d{10}$/.test(
+          cleanPhone
         )
-      );
-    }
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Phone number must be exactly 10 digits!"
+          )
+        );
+      }
 
-    return res.status(201).json({
-      success:
-        true,
+      if (
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+          cleanEmail
+        )
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Please provide a valid email address!"
+          )
+        );
+      }
 
-      message:
-        "Account created. Please verify your email with the OTP sent to your inbox.",
+      // FIXED
+      if (
+        String(password).length <
+        6
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Password must contain at least 6 characters!"
+          )
+        );
+      }
 
-      data: {
-        email:
-          cleanEmail,
-        requiresVerification:
+      const existingUser =
+        await User.findOne({
+          email:
+            cleanEmail,
+        });
+
+      if (existingUser) {
+        return next(
+          createHttpError(
+            400,
+            existingUser.emailVerified ===
+              false
+              ? "An account with this email already exists. Please verify your email."
+              : "An account with this email already exists!"
+          )
+        );
+      }
+
+      const otp =
+        generateOtp();
+
+      const user =
+        new User({
+          name:
+            cleanName,
+
+          phone:
+            cleanPhone,
+
+          email:
+            cleanEmail,
+
+          password,
+
+          role:
+            "Admin",
+
+          emailVerified:
+            false,
+
+          emailVerificationOtpHash:
+            hashOtp(
+              otp
+            ),
+
+          emailVerificationExpiresAt:
+            new Date(
+              Date.now() +
+                10 *
+                  60 *
+                  1000
+            ),
+        });
+
+      await user.save();
+
+      let restaurant;
+
+      try {
+        restaurant =
+          await Restaurant.create({
+            name:
+              cleanRestaurantName,
+
+            owner:
+              user._id,
+
+            status:
+              "pending",
+          });
+      } catch (error) {
+        await User.findByIdAndDelete(
+          user._id
+        );
+
+        throw error;
+      }
+
+      try {
+        await User.updateOne(
+          {
+            _id:
+              user._id,
+          },
+          {
+            $set: {
+              restaurantId:
+                restaurant._id,
+            },
+          }
+        );
+      } catch (error) {
+        await Restaurant.findByIdAndDelete(
+          restaurant._id
+        );
+
+        await User.findByIdAndDelete(
+          user._id
+        );
+
+        throw error;
+      }
+
+      try {
+        await sendVerificationEmail({
+          email:
+            cleanEmail,
+
+          name:
+            cleanName,
+
+          otp,
+        });
+      } catch (emailError) {
+        await Restaurant.findByIdAndDelete(
+          restaurant._id
+        );
+
+        await User.findByIdAndDelete(
+          user._id
+        );
+
+        console.error(
+          "Verification email failed:",
+          emailError
+        );
+
+        return next(
+          createHttpError(
+            500,
+            "Unable to send verification email. Please try again."
+          )
+        );
+      }
+
+      return res.status(201).json({
+        success:
           true,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+
+        message:
+          "Account created. Please verify your email with the OTP sent to your inbox.",
+
+        data: {
+          email:
+            cleanEmail,
+
+          requiresVerification:
+            true,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 
 // ======================================================
 // VERIFY EMAIL
@@ -1764,12 +1673,16 @@ const verifyEmail =
       } = req.body;
 
       const cleanEmail =
-        String(email || "")
+        String(
+          email || ""
+        )
           .trim()
           .toLowerCase();
 
       const cleanOtp =
-        String(otp || "").trim();
+        String(
+          otp || ""
+        ).trim();
 
       if (
         !cleanEmail ||
@@ -1909,7 +1822,9 @@ const resendVerificationOtp =
       } = req.body;
 
       const cleanEmail =
-        String(email || "")
+        String(
+          email || ""
+        )
           .trim()
           .toLowerCase();
 
@@ -1952,7 +1867,9 @@ const resendVerificationOtp =
         generateOtp();
 
       user.emailVerificationOtpHash =
-        hashOtp(otp);
+        hashOtp(
+          otp
+        );
 
       user.emailVerificationExpiresAt =
         new Date(
@@ -1986,6 +1903,10 @@ const resendVerificationOtp =
     }
   };
 
+// ======================================================
+// EXPORTS
+// ======================================================
+
 module.exports = {
   register,
   login,
@@ -2004,6 +1925,6 @@ module.exports = {
   getAllUsers,
   updateUserSubscription,
 
-   verifyEmail,
+  verifyEmail,
   resendVerificationOtp,
 };

@@ -18,6 +18,9 @@ const {
 
   getAllUsers,
   updateUserSubscription,
+
+  verifyEmail,
+  resendVerificationOtp,
 } = require("../controllers/userController");
 
 const {

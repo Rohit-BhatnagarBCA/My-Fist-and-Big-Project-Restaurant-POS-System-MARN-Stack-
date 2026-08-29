@@ -55,6 +55,25 @@ const userSchema =
       },
 
       // =====================================================
+      // EMAIL VERIFICATION (OTP)
+      // =====================================================
+
+      emailVerified: {
+        type: Boolean,
+        default: false,
+      },
+
+      emailVerificationOtpHash: {
+        type: String,
+        default: null,
+      },
+
+      emailVerificationExpiresAt: {
+        type: Date,
+        default: null,
+      },
+
+      // =====================================================
       // RESTAURANT RELATION
       // =====================================================
 
@@ -105,8 +124,6 @@ const userSchema =
           type: String,
           default: null,
         },
-
-        
       },
     },
     {
@@ -140,10 +157,7 @@ userSchema.pre(
   }
 );
 
-
-
 module.exports = mongoose.model(
   "User",
   userSchema
 );
-

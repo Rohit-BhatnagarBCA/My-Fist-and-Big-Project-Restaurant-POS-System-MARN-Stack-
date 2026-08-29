@@ -736,12 +736,6 @@ const updateRestaurantStatus =
     }
   };
 
-  const createHttpError =
-  require("http-errors");
-
-const Restaurant =
-  require("../models/restaurantModel");
-
 // ======================================================
 // GET MY TAX
 // ======================================================

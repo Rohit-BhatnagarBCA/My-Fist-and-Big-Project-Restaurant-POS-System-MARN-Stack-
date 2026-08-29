@@ -4,49 +4,63 @@ const {
   createRestaurant,
   getMyRestaurant,
   updateMyRestaurant,
-
   getAllRestaurants,
   getRestaurantById,
   updateRestaurantStatus,
+
+  getMyTax,
+  updateMyTax,
 } = require("../controllers/restaurantController");
 
 const {
   isVerifiedUser,
-  isAdmin,
   isSuperAdmin,
 } = require("../middlewares/tokenVerification");
 
 const router =
   express.Router();
 
-// ============================================================
-// RESTAURANT ADMIN
-// ============================================================
+// ======================================================
+// MY RESTAURANT
+// ======================================================
 
 router.post(
   "/",
   isVerifiedUser,
-  isAdmin,
   createRestaurant
 );
 
 router.get(
   "/my",
   isVerifiedUser,
-  isAdmin,
   getMyRestaurant
 );
 
 router.patch(
   "/my",
   isVerifiedUser,
-  isAdmin,
   updateMyRestaurant
 );
 
-// ============================================================
+// ======================================================
+// TAX
+// ======================================================
+
+router.get(
+  "/my/tax",
+  isVerifiedUser,
+  getMyTax
+);
+
+router.patch(
+  "/my/tax",
+  isVerifiedUser,
+  updateMyTax
+);
+
+// ======================================================
 // SUPER ADMIN
-// ============================================================
+// ======================================================
 
 router.get(
   "/admin/all",

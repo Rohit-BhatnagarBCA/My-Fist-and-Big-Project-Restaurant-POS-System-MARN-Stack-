@@ -9,3 +9,4 @@ export { default as Subscription } from "./Subscription.jsx";
 export { default as SuperAdmin } from "./SuperAdmin.jsx";
 export { default as Staff } from "./Staff.jsx";
 export { default as Profile } from "./Profile.jsx";
+export { default as VerifyEmail } from "./VerifyEmail.jsx";

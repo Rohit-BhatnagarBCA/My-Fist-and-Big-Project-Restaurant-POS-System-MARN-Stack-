@@ -18,6 +18,7 @@ import {
   SuperAdmin,
   Staff,
   Profile,
+  VerifyEmail,
 } from "./pages";
 
 import Header from "./components/shared/Header";
@@ -37,6 +38,7 @@ function Layout() {
     "/about",
     "/subscription",
     "/super-admin",
+    "/verify-email",
   ];
 
   const { isAuth } =
@@ -87,6 +89,24 @@ function Layout() {
               />
             ) : (
               <Auth />
+            )
+          }
+        />
+
+        {/* =====================================================
+            VERIFY EMAIL
+           ===================================================== */}
+
+        <Route
+          path="/verify-email"
+          element={
+            isAuth ? (
+              <Navigate
+                to="/"
+                replace
+              />
+            ) : (
+              <VerifyEmail />
             )
           }
         />
