@@ -24,6 +24,7 @@ import {
 const PUBLIC_ROUTES = [
   "/auth",
   "/about",
+  "/verify-email",
 ];
 
 const useLoadData =

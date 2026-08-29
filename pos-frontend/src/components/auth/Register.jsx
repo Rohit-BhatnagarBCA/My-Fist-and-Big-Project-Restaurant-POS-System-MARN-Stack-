@@ -21,6 +21,8 @@ import {
   IoEyeOffOutline,
 } from "react-icons/io5";
 
+import { useNavigate } from "react-router-dom";
+
 import { register } from "../../https";
 
 const labelFont =
@@ -52,6 +54,8 @@ const TicketField = ({
 const Register = ({
   setIsRegister,
 }) => {
+  const navigate = useNavigate();
+
   const [
     showPassword,
     setShowPassword,
@@ -153,12 +157,17 @@ const Register = ({
 
         enqueueSnackbar(
           response?.data?.message ||
-            "Restaurant account created successfully! Please login.",
+            "Restaurant account created successfully! Please verify your email.",
           {
             variant:
               "success",
           }
         );
+
+        const registeredEmail =
+          formData.email
+            .trim()
+            .toLowerCase();
 
         setFormData({
           name: "",
@@ -170,10 +179,16 @@ const Register = ({
         });
 
         setTimeout(() => {
-          setIsRegister(
-            false
+          navigate(
+            "/verify-email",
+            {
+              state: {
+                email:
+                  registeredEmail,
+              },
+            }
           );
-        }, 1000);
+        }, 800);
       } catch (error) {
         enqueueSnackbar(
           error?.response?.data
