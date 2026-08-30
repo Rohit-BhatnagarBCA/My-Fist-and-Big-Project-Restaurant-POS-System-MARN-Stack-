@@ -28,6 +28,13 @@ const restaurantSchema = new mongoose.Schema(
       index: true,
     },
 
+    taxRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+
     subscription: {
       plan: {
         type: String,

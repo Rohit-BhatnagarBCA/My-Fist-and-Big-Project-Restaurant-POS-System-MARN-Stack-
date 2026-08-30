@@ -16,6 +16,7 @@ import { BiSolidDish } from "react-icons/bi";
 import Metrics from "../components/dashboard/Metrics";
 import RecentOrders from "../components/dashboard/RecentOrders";
 import Modal from "../components/dashboard/Modal";
+import TaxSettings from "../components/dashboard/TaxSettings";
 
 import { usePrinter } from "../context/PrinterContext";
 import { enqueueSnackbar } from "notistack";
@@ -42,6 +43,7 @@ const tabs = [
   "Metrics",
   "Orders",
   "Payments",
+  "Tax",
 ];
 
 const Dashboard = () => {
@@ -255,6 +257,13 @@ const Dashboard = () => {
           "Payments" && (
           <div className="text-white p-6 container mx-auto">
             Payment Component Coming Soon
+          </div>
+        )}
+
+        {activeTab ===
+          "Tax" && (
+          <div className="p-6 container mx-auto">
+            <TaxSettings />
           </div>
         )}
       </div>

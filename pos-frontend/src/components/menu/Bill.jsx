@@ -11,11 +11,12 @@ import {
   addOrder,
   addItemsToOrder,
   updateTable,
+  getMyTax,
 } from "../../https/index";
 
 import { enqueueSnackbar } from "notistack";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { removeAllItems } from "../../redux/slices/cartSlice";
 import { removeCustomer } from "../../redux/slices/customerSlice";
@@ -40,7 +41,12 @@ const Bill = ({ onOrderPlaced }) => {
 
   const total = useSelector(getTotalPrice);
 
-  const taxRate = 5.25;
+  const { data: taxData } = useQuery({
+    queryKey: ["my-tax"],
+    queryFn: getMyTax,
+  });
+
+  const taxRate = taxData?.data?.data?.taxRate ?? 0;
   const tax = (total * taxRate) / 100;
   const totalPriceWithTax = total + tax;
 
