@@ -69,9 +69,16 @@ function Layout() {
         <Route
           path="/"
           element={
-            <ProtectedRoutes>
-              <Home />
-            </ProtectedRoutes>
+            isAuth ? (
+              <ProtectedRoutes>
+                <Home />
+              </ProtectedRoutes>
+            ) : (
+              <Navigate
+                to="/about"
+                replace
+              />
+            )
           }
         />
 

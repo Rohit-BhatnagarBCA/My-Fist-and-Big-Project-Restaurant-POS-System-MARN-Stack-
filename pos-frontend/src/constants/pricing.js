@@ -17,27 +17,31 @@ export const DURATIONS = [
 ];
 
 export const BUSINESS_PLANS = [
-  {
-    id: "Basic",
-    name: "Basic",
-    tagline:
-      "Everything to run daily billing smoothly",
-    excelExport: false,
-    prices: {
-      Monthly: 799,
-      "4-Month": 2899,
-      Yearly: 7999,
-    },
-    features: [
-      "Dine-In & Packing orders",
-      "Live menu & category management",
-      "Real-time stock tracking",
-      "KOT — Kitchen ticket board with alerts",
-      "Cash & Online payments",
-      "USB thermal receipt printing",
-      "Dashboard analytics",
-    ],
-  },
+  // ============================================================
+  // BASIC PLAN — temporarily hidden from frontend.
+  // Uncomment to bring it back.
+  // ============================================================
+  // {
+  //   id: "Basic",
+  //   name: "Basic",
+  //   tagline:
+  //     "Everything to run daily billing smoothly",
+  //   excelExport: false,
+  //   prices: {
+  //     Monthly: 799,
+  //     "4-Month": 2899,
+  //     Yearly: 7999,
+  //   },
+  //   features: [
+  //     "Dine-In & Packing orders",
+  //     "Live menu & category management",
+  //     "Real-time stock tracking",
+  //     "KOT — Kitchen ticket board with alerts",
+  //     "Cash & Online payments",
+  //     "USB thermal receipt printing",
+  //     "Dashboard analytics",
+  //   ],
+  // },
 
   {
     id: "Pro",
@@ -52,7 +56,13 @@ export const BUSINESS_PLANS = [
       Yearly: 14999,
     },
     features: [
-      "Everything in Basic",
+      "Dine-In & Packing orders",
+      "Live menu & category management",
+      "Real-time stock tracking",
+      "KOT — Kitchen ticket board with alerts",
+      "Cash & Online payments",
+      "USB thermal receipt printing",
+      "Dashboard analytics",
       "Excel export & data backup",
       "Priority support",
     ],

@@ -49,8 +49,11 @@ const Subscription = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const [selectedPlan, setSelectedPlan] =
-    useState("Basic");
+  //  const [selectedPlan, setSelectedPlan] =
+  //   useState("Basic");
+
+    const [selectedPlan, setSelectedPlan] =
+    useState("Pro");
 
   const [selectedDuration, setSelectedDuration] =
     useState("Monthly");
