@@ -16,6 +16,11 @@ const transporter =
       ).toLowerCase() ===
       "true",
 
+    // Render's outbound network prefers IPv6, but Gmail's
+    // SMTP endpoint over IPv6 is unreachable from Render
+    // (ENETUNREACH). Forcing IPv4 fixes it.
+    family: 4,
+
     auth: {
       user:
         process.env.SMTP_USER,
