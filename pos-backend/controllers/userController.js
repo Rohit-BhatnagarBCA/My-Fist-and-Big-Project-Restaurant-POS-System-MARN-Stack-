@@ -1536,29 +1536,20 @@ const register = async (
       }
     );
 
-    try {
-      await sendVerificationEmail({
-        email: cleanEmail,
-        name: cleanName,
-        otp,
-      });
-    } catch (emailError) {
-      await PendingRegistration.deleteOne({
-        email: cleanEmail,
-      });
-
+     // Respond immediately — don't make the user wait on the
+    // SMTP round trip. The email is sent in the background;
+    // if it happens to fail, the "Resend OTP" button on the
+    // verify page covers that case.
+    sendVerificationEmail({
+      email: cleanEmail,
+      name: cleanName,
+      otp,
+    }).catch((emailError) => {
       console.error(
         "Verification email failed:",
         emailError
       );
-
-      return next(
-        createHttpError(
-          500,
-          "Unable to send verification email. Please try again."
-        )
-      );
-    }
+    });
 
     return res.status(200).json({
       success: true,
