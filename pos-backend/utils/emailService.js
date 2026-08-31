@@ -1,81 +1,105 @@
-const { Resend } = require("resend");
 const crypto = require("crypto");
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-const generateOtp = () =>
-  String(
-    Math.floor(
-      100000 + Math.random() * 900000
-    )
+const generateOtp = () => {
+  return String(
+    Math.floor(100000 + Math.random() * 900000)
   );
+};
 
-const hashOtp = (otp) =>
-  crypto
+const hashOtp = (otp) => {
+  return crypto
     .createHash("sha256")
     .update(String(otp))
     .digest("hex");
+};
 
-const sendVerificationEmail = async ({
-  email,
-  name,
-  otp,
-}) => {
-  const { data, error } = await resend.emails.send({
-    from: "Restro POS <onboarding@resend.dev>",
-    to: [email],
+const sendVerificationEmail = async ({ email, name, otp }) => {
+  const response = await fetch(
+    "https://api.brevo.com/v3/smtp/email",
+    {
+      method: "POST",
+      headers: {
+        "accept": "application/json",
+        "api-key": process.env.BREVO_API_KEY,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        sender: {
+          name: "Restro POS",
+          email: "rohitbhatnagar934@gmail.com",
+        },
 
-    subject: "Verify your Restro POS account",
+        to: [
+          {
+            email: email,
+            name: name || "there",
+          },
+        ],
 
-    text:
-      `Hi ${name || "there"},\n\n` +
-      `Your Restro POS verification code is ${otp}.\n\n` +
-      `This code expires in 10 minutes.\n\n` +
-      `If you did not create this account, you can ignore this email.`,
+        subject: "Verify your Restro POS account",
 
-    html: `
-      <div style="font-family:Arial,sans-serif;background:#fffaf5;padding:30px;">
-        <div style="max-width:520px;margin:auto;background:white;border:1px solid #eaded5;border-radius:18px;padding:28px;">
+        textContent:
+          `Hi ${name || "there"},\n\n` +
+          `Your Restro POS verification code is ${otp}.\n\n` +
+          `This code expires in 10 minutes.\n\n` +
+          `If you did not create this account, you can ignore this email.`,
 
-          <h2 style="margin:0 0 8px;color:#241b16;">
-            Verify your Restro POS account
-          </h2>
+        htmlContent: `
+          <div style="font-family:Arial,sans-serif;background:#fffaf5;padding:30px;">
+            <div style="max-width:520px;margin:auto;background:white;border:1px solid #eaded5;border-radius:18px;padding:28px;">
 
-          <p style="color:#75685f;line-height:1.6;">
-            Hi ${name || "there"},
-          </p>
+              <h2 style="margin:0 0 8px;color:#241b16;">
+                Verify your Restro POS account
+              </h2>
 
-          <p style="color:#75685f;line-height:1.6;">
-            Use the verification code below to confirm your email address.
-          </p>
+              <p style="color:#75685f;line-height:1.6;">
+                Hi ${name || "there"},
+              </p>
 
-          <div style="margin:24px 0;text-align:center;">
-            <div style="display:inline-block;background:#fff0e7;border:1px solid #e5b69e;border-radius:14px;padding:16px 24px;">
-              <span style="font-size:30px;font-weight:800;letter-spacing:8px;color:#c65a2e;">
-                ${otp}
-              </span>
+              <p style="color:#75685f;line-height:1.6;">
+                Use the verification code below to confirm your email address.
+              </p>
+
+              <div style="margin:24px 0;text-align:center;">
+                <div style="display:inline-block;background:#fff0e7;border:1px solid #e5b69e;border-radius:14px;padding:16px 24px;">
+                  <span style="font-size:30px;font-weight:800;letter-spacing:8px;color:#c65a2e;">
+                    ${otp}
+                  </span>
+                </div>
+              </div>
+
+              <p style="font-size:13px;color:#8b7a70;">
+                This code expires in 10 minutes.
+              </p>
+
+              <p style="font-size:12px;color:#a09086;margin-top:24px;">
+                Restro POS
+              </p>
+
             </div>
           </div>
+        `,
+      }),
+    }
+  );
 
-          <p style="font-size:13px;color:#8b7a70;">
-            This code expires in 10 minutes.
-          </p>
+  if (!response.ok) {
+    const errorText = await response.text();
 
-          <p style="font-size:12px;color:#a09086;margin-top:24px;">
-            Restro POS
-          </p>
+    console.error(
+      "Brevo email failed:",
+      response.status,
+      errorText
+    );
 
-        </div>
-      </div>
-    `,
-  });
-
-  if (error) {
-    console.error("❌ Resend email error:", error);
-    throw new Error(error.message || "Failed to send verification email");
+    throw new Error(
+      `Brevo email failed with status ${response.status}`
+    );
   }
 
-  console.log("✅ Verification email sent:", data?.id);
+  const data = await response.json();
+
+  console.log("Verification email sent via Brevo:", data);
 
   return data;
 };
