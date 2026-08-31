@@ -1377,532 +1377,430 @@ const updateUserSubscription =
 // REGISTER — EMAIL OTP VERIFICATION
 // ======================================================
 
-const register =
-  async (
-    req,
-    res,
-    next
-  ) => {
-    try {
-      const {
-        name,
-        restaurantName,
-        phone,
-        email,
-        password,
-      } = req.body;
+// ======================================================
+// REGISTER
+//
+// Nothing is written to User/Restaurant here. Details go
+// into a short-lived PendingRegistration record; the real
+// account is only created once verifyEmail() succeeds.
+// ======================================================
 
-      if (
-        !name ||
-        !restaurantName ||
-        !phone ||
-        !email ||
-        !password
-      ) {
-        return next(
-          createHttpError(
-            400,
-            "Name, restaurant name, phone, email and password are required!"
-          )
-        );
-      }
+const register = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const {
+      name,
+      restaurantName,
+      phone,
+      email,
+      password,
+    } = req.body;
 
-      const cleanName =
-        String(name)
-          .trim();
-
-      const cleanRestaurantName =
-        String(
-          restaurantName
-        ).trim();
-
-      const cleanEmail =
-        String(email)
-          .trim()
-          .toLowerCase();
-
-      const cleanPhone =
-        String(phone)
-          .replace(
-            /\D/g,
-            ""
-          );
-
-      if (
-        !cleanName
-      ) {
-        return next(
-          createHttpError(
-            400,
-            "Name is required!"
-          )
-        );
-      }
-
-      if (
-        !cleanRestaurantName
-      ) {
-        return next(
-          createHttpError(
-            400,
-            "Restaurant name is required!"
-          )
-        );
-      }
-
-      if (
-        cleanRestaurantName.length >
-        120
-      ) {
-        return next(
-          createHttpError(
-            400,
-            "Restaurant name cannot exceed 120 characters!"
-          )
-        );
-      }
-
-      if (
-        !/^\d{10}$/.test(
-          cleanPhone
+    if (
+      !name ||
+      !restaurantName ||
+      !phone ||
+      !email ||
+      !password
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Name, restaurant name, phone, email and password are required!"
         )
-      ) {
-        return next(
-          createHttpError(
-            400,
-            "Phone number must be exactly 10 digits!"
-          )
-        );
-      }
-
-      if (
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-          cleanEmail
-        )
-      ) {
-        return next(
-          createHttpError(
-            400,
-            "Please provide a valid email address!"
-          )
-        );
-      }
-
-      // FIXED
-      if (
-        String(password).length <
-        6
-      ) {
-        return next(
-          createHttpError(
-            400,
-            "Password must contain at least 6 characters!"
-          )
-        );
-      }
-
-      const existingUser =
-        await User.findOne({
-          email:
-            cleanEmail,
-        });
-
-      if (existingUser) {
-        return next(
-          createHttpError(
-            400,
-            existingUser.emailVerified ===
-              false
-              ? "An account with this email already exists. Please verify your email."
-              : "An account with this email already exists!"
-          )
-        );
-      }
-
-      const otp =
-        generateOtp();
-
-      const user =
-        new User({
-          name:
-            cleanName,
-
-          phone:
-            cleanPhone,
-
-          email:
-            cleanEmail,
-
-          password,
-
-          role:
-            "Admin",
-
-          emailVerified:
-            false,
-
-          emailVerificationOtpHash:
-            hashOtp(
-              otp
-            ),
-
-          emailVerificationExpiresAt:
-            new Date(
-              Date.now() +
-                10 *
-                  60 *
-                  1000
-            ),
-        });
-
-      await user.save();
-
-      let restaurant;
-
-      try {
-        restaurant =
-          await Restaurant.create({
-            name:
-              cleanRestaurantName,
-
-            owner:
-              user._id,
-
-            status:
-              "pending",
-          });
-      } catch (error) {
-        await User.findByIdAndDelete(
-          user._id
-        );
-
-        throw error;
-      }
-
-      try {
-        await User.updateOne(
-          {
-            _id:
-              user._id,
-          },
-          {
-            $set: {
-              restaurantId:
-                restaurant._id,
-            },
-          }
-        );
-      } catch (error) {
-        await Restaurant.findByIdAndDelete(
-          restaurant._id
-        );
-
-        await User.findByIdAndDelete(
-          user._id
-        );
-
-        throw error;
-      }
-
-      try {
-        await sendVerificationEmail({
-          email:
-            cleanEmail,
-
-          name:
-            cleanName,
-
-          otp,
-        });
-      } catch (emailError) {
-        await Restaurant.findByIdAndDelete(
-          restaurant._id
-        );
-
-        await User.findByIdAndDelete(
-          user._id
-        );
-
-        console.error(
-          "Verification email failed:",
-          emailError
-        );
-
-        return next(
-          createHttpError(
-            500,
-            "Unable to send verification email. Please try again."
-          )
-        );
-      }
-
-      return res.status(201).json({
-        success:
-          true,
-
-        message:
-          "Account created. Please verify your email with the OTP sent to your inbox.",
-
-        data: {
-          email:
-            cleanEmail,
-
-          requiresVerification:
-            true,
-        },
-      });
-    } catch (error) {
-      next(error);
+      );
     }
-  };
+
+    const cleanName =
+      String(name).trim();
+
+    const cleanRestaurantName =
+      String(restaurantName).trim();
+
+    const cleanEmail =
+      String(email)
+        .trim()
+        .toLowerCase();
+
+    const cleanPhone =
+      String(phone).replace(
+        /\D/g,
+        ""
+      );
+
+    if (!cleanName) {
+      return next(
+        createHttpError(
+          400,
+          "Name is required!"
+        )
+      );
+    }
+
+    if (!cleanRestaurantName) {
+      return next(
+        createHttpError(
+          400,
+          "Restaurant name is required!"
+        )
+      );
+    }
+
+    if (
+      cleanRestaurantName.length >
+      120
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Restaurant name cannot exceed 120 characters!"
+        )
+      );
+    }
+
+    if (
+      !/^\d{10}$/.test(cleanPhone)
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Phone number must be exactly 10 digits!"
+        )
+      );
+    }
+
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        cleanEmail
+      )
+    ) {
+      return next(
+        createHttpError(
+          400,
+          "Please provide a valid email address!"
+        )
+      );
+    }
+
+    if (String(password).length < 6) {
+      return next(
+        createHttpError(
+          400,
+          "Password must contain at least 6 characters!"
+        )
+      );
+    }
+
+    const existingUser =
+      await User.findOne({
+        email: cleanEmail,
+      });
+
+    if (existingUser) {
+      return next(
+        createHttpError(
+          400,
+          "An account with this email already exists!"
+        )
+      );
+    }
+
+    const otp = generateOtp();
+    const otpHash = hashOtp(otp);
+    const otpExpiresAt = new Date(
+      Date.now() + 10 * 60 * 1000
+    );
+
+    await PendingRegistration.findOneAndUpdate(
+      { email: cleanEmail },
+      {
+        name: cleanName,
+        restaurantName: cleanRestaurantName,
+        phone: cleanPhone,
+        email: cleanEmail,
+        password,
+        otpHash,
+        otpExpiresAt,
+        createdAt: new Date(),
+      },
+      {
+        upsert: true,
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    try {
+      await sendVerificationEmail({
+        email: cleanEmail,
+        name: cleanName,
+        otp,
+      });
+    } catch (emailError) {
+      await PendingRegistration.deleteOne({
+        email: cleanEmail,
+      });
+
+      console.error(
+        "Verification email failed:",
+        emailError
+      );
+
+      return next(
+        createHttpError(
+          500,
+          "Unable to send verification email. Please try again."
+        )
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Verification code sent to your email. Please verify to create your account.",
+      data: {
+        email: cleanEmail,
+        requiresVerification: true,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // ======================================================
 // VERIFY EMAIL
+//
+// Account is actually created here, only after a correct,
+// non-expired OTP is supplied.
 // ======================================================
 
-const verifyEmail =
-  async (
-    req,
-    res,
-    next
-  ) => {
+const verifyEmail = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { email, otp } = req.body;
+
+    const cleanEmail = String(
+      email || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const cleanOtp = String(
+      otp || ""
+    ).trim();
+
+    if (!cleanEmail || !cleanOtp) {
+      return next(
+        createHttpError(
+          400,
+          "Email and OTP are required."
+        )
+      );
+    }
+
+    if (!/^\d{6}$/.test(cleanOtp)) {
+      return next(
+        createHttpError(
+          400,
+          "OTP must be 6 digits."
+        )
+      );
+    }
+
+    const existingUser =
+      await User.findOne({
+        email: cleanEmail,
+      });
+
+    if (existingUser) {
+      return res.status(200).json({
+        success: true,
+        message:
+          "Email is already verified. You can log in.",
+      });
+    }
+
+    const pending =
+      await PendingRegistration.findOne({
+        email: cleanEmail,
+      });
+
+    if (!pending) {
+      return next(
+        createHttpError(
+          404,
+          "No pending registration found for this email. Please register again."
+        )
+      );
+    }
+
+    if (new Date() > pending.otpExpiresAt) {
+      await PendingRegistration.deleteOne({
+        email: cleanEmail,
+      });
+
+      return next(
+        createHttpError(
+          400,
+          "Verification code has expired. Please register again."
+        )
+      );
+    }
+
+    const otpMatches =
+      hashOtp(cleanOtp) === pending.otpHash;
+
+    if (!otpMatches) {
+      return next(
+        createHttpError(
+          400,
+          "Invalid verification code."
+        )
+      );
+    }
+
+    const user = new User({
+      name: pending.name,
+      phone: pending.phone,
+      email: pending.email,
+      password: pending.password,
+      role: "Admin",
+      emailVerified: true,
+    });
+
+    await user.save();
+
+    let restaurant;
+
     try {
-      const {
-        email,
-        otp,
-      } = req.body;
+      restaurant = await Restaurant.create({
+        name: pending.restaurantName,
+        owner: user._id,
+        status: "pending",
+      });
+    } catch (error) {
+      await User.findByIdAndDelete(user._id);
+      throw error;
+    }
 
-      const cleanEmail =
-        String(
-          email || ""
-        )
-          .trim()
-          .toLowerCase();
-
-      const cleanOtp =
-        String(
-          otp || ""
-        ).trim();
-
-      if (
-        !cleanEmail ||
-        !cleanOtp
-      ) {
-        return next(
-          createHttpError(
-            400,
-            "Email and OTP are required."
-          )
-        );
-      }
-
-      if (
-        !/^\d{6}$/.test(
-          cleanOtp
-        )
-      ) {
-        return next(
-          createHttpError(
-            400,
-            "OTP must be 6 digits."
-          )
-        );
-      }
-
-      const user =
-        await User.findOne({
-          email:
-            cleanEmail,
-        });
-
-      if (!user) {
-        return next(
-          createHttpError(
-            404,
-            "Account not found."
-          )
-        );
-      }
-
-      if (
-        user.emailVerified
-      ) {
-        return res.status(200).json({
-          success:
-            true,
-
-          message:
-            "Email is already verified.",
-        });
-      }
-
-      if (
-        !user.emailVerificationOtpHash ||
-        !user.emailVerificationExpiresAt
-      ) {
-        return next(
-          createHttpError(
-            400,
-            "Verification code is not available. Please request a new code."
-          )
-        );
-      }
-
-      if (
-        new Date() >
-        user.emailVerificationExpiresAt
-      ) {
-        return next(
-          createHttpError(
-            400,
-            "Verification code has expired. Please request a new code."
-          )
-        );
-      }
-
-      const otpMatches =
-        hashOtp(
-          cleanOtp
-        ) ===
-        user.emailVerificationOtpHash;
-
-      if (!otpMatches) {
-        return next(
-          createHttpError(
-            400,
-            "Invalid verification code."
-          )
-        );
-      }
-
+    try {
       await User.updateOne(
-        {
-          _id:
-            user._id,
-        },
+        { _id: user._id },
         {
           $set: {
-            emailVerified:
-              true,
-
-            emailVerificationOtpHash:
-              null,
-
-            emailVerificationExpiresAt:
-              null,
+            restaurantId: restaurant._id,
           },
         }
       );
-
-      return res.status(200).json({
-        success:
-          true,
-
-        message:
-          "Email verified successfully. You can now log in.",
-      });
     } catch (error) {
-      next(error);
+      await Restaurant.findByIdAndDelete(
+        restaurant._id
+      );
+      await User.findByIdAndDelete(user._id);
+      throw error;
     }
-  };
+
+    await PendingRegistration.deleteOne({
+      email: cleanEmail,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message:
+        "Email verified and account created successfully. You can now log in.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // ======================================================
 // RESEND EMAIL OTP
 // ======================================================
 
-const resendVerificationOtp =
-  async (
-    req,
-    res,
-    next
-  ) => {
-    try {
-      const {
-        email,
-      } = req.body;
+const resendVerificationOtp = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { email } = req.body;
 
-      const cleanEmail =
-        String(
-          email || ""
+    const cleanEmail = String(
+      email || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    if (!cleanEmail) {
+      return next(
+        createHttpError(
+          400,
+          "Email is required."
         )
-          .trim()
-          .toLowerCase();
-
-      if (!cleanEmail) {
-        return next(
-          createHttpError(
-            400,
-            "Email is required."
-          )
-        );
-      }
-
-      const user =
-        await User.findOne({
-          email:
-            cleanEmail,
-        });
-
-      if (!user) {
-        return next(
-          createHttpError(
-            404,
-            "Account not found."
-          )
-        );
-      }
-
-      if (
-        user.emailVerified
-      ) {
-        return next(
-          createHttpError(
-            400,
-            "Email is already verified."
-          )
-        );
-      }
-
-      const otp =
-        generateOtp();
-
-      user.emailVerificationOtpHash =
-        hashOtp(
-          otp
-        );
-
-      user.emailVerificationExpiresAt =
-        new Date(
-          Date.now() +
-            10 *
-              60 *
-              1000
-        );
-
-      await user.save();
-
-      await sendVerificationEmail({
-        email:
-          user.email,
-
-        name:
-          user.name,
-
-        otp,
-      });
-
-      return res.status(200).json({
-        success:
-          true,
-
-        message:
-          "A new verification code has been sent.",
-      });
-    } catch (error) {
-      next(error);
+      );
     }
-  };
 
+    const existingUser =
+      await User.findOne({
+        email: cleanEmail,
+      });
+
+    if (existingUser) {
+      return next(
+        createHttpError(
+          400,
+          "Email is already verified."
+        )
+      );
+    }
+
+    const pending =
+      await PendingRegistration.findOne({
+        email: cleanEmail,
+      });
+
+    if (!pending) {
+      return next(
+        createHttpError(
+          404,
+          "No pending registration found for this email. Please register again."
+        )
+      );
+    }
+
+    const otp = generateOtp();
+
+    pending.otpHash = hashOtp(otp);
+
+    pending.otpExpiresAt = new Date(
+      Date.now() + 10 * 60 * 1000
+    );
+
+    await pending.save();
+
+    await sendVerificationEmail({
+      email: pending.email,
+      name: pending.name,
+      otp,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "A new verification code has been sent.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 // ======================================================
 // EXPORTS
 // ======================================================
