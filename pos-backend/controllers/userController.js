@@ -7,6 +7,9 @@ const User =
 const Restaurant =
   require("../models/restaurantModel");
 
+const PendingRegistration =
+  require("../models/pendingRegistrationModel");
+
 const bcrypt =
   require("bcrypt");
 
