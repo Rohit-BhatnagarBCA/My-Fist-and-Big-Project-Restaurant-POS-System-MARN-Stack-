@@ -1,95 +1,109 @@
-const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT || 587),
+// ============================================================
+// EMAIL SERVICE — Brevo Transactional Email API
+//
+// Uses Brevo's HTTPS API directly instead of raw SMTP.
+// Render's outbound network has repeatedly failed to reach
+// SMTP ports (ENETUNREACH / ETIMEDOUT), which is a common
+// issue on cloud hosts. A plain HTTPS API call sidesteps
+// that completely — no SMTP ports involved at all.
+// ============================================================
 
-  // Port 587 = TLS/STARTTLS
-  secure: false,
+const generateOtp = () =>
+  String(
+    Math.floor(
+      100000 +
+        Math.random() * 900000
+    )
+  );
 
-  // Render par IPv6 problem avoid karne ke liye
-  family: 4,
-
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
-
-const generateOtp = () => {
-  return String(Math.floor(100000 + Math.random() * 900000));
-};
-
-const hashOtp = (otp) => {
-  return crypto
+const hashOtp = (otp) =>
+  crypto
     .createHash("sha256")
     .update(String(otp))
     .digest("hex");
-};
 
-const sendVerificationEmail = async ({ email, name, otp }) => {
-  try {
-    const info = await transporter.sendMail({
-      from: `"Restro POS" <${process.env.SMTP_FROM}>`,
-      to: email,
+const sendVerificationEmail =
+  async ({ email, name, otp }) => {
+    const response = await fetch(
+      "https://api.brevo.com/v3/smtp/email",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+          "api-key":
+            process.env.BREVO_API_KEY,
+        },
+        body: JSON.stringify({
+          sender: {
+            name: "Restro POS",
+            email:
+              process.env.SMTP_FROM,
+          },
 
-      subject: "Verify your Restro POS account",
+          to: [
+            {
+              email,
+              name:
+                name || "there",
+            },
+          ],
 
-      text:
-        `Hi ${name || "there"},\n\n` +
-        `Your Restro POS verification code is ${otp}.\n\n` +
-        `This code expires in 10 minutes.\n\n` +
-        `If you did not create this account, you can ignore this email.`,
+          subject:
+            "Verify your Restro POS account",
 
-      html: `
-        <div style="font-family:Arial,sans-serif;background:#fffaf5;padding:30px;">
-          <div style="max-width:520px;margin:auto;background:white;border:1px solid #eaded5;border-radius:18px;padding:28px;">
+          htmlContent: `
+            <div style="font-family:Arial,sans-serif;background:#fffaf5;padding:30px;">
+              <div style="max-width:520px;margin:auto;background:white;border:1px solid #eaded5;border-radius:18px;padding:28px;">
 
-            <h2 style="margin:0 0 8px;color:#241b16;">
-              Verify your Restro POS account
-            </h2>
+                <h2 style="margin:0 0 8px;color:#241b16;">
+                  Verify your Restro POS account
+                </h2>
 
-            <p style="color:#75685f;line-height:1.6;">
-              Hi ${name || "there"},
-            </p>
+                <p style="color:#75685f;line-height:1.6;">
+                  Hi ${name || "there"},
+                </p>
 
-            <p style="color:#75685f;line-height:1.6;">
-              Use the verification code below to confirm your email address.
-            </p>
+                <p style="color:#75685f;line-height:1.6;">
+                  Use the verification code below to confirm your email address.
+                </p>
 
-            <div style="margin:24px 0;text-align:center;">
-              <div style="display:inline-block;background:#fff0e7;border:1px solid #e5b69e;border-radius:14px;padding:16px 24px;">
-                <span style="font-size:30px;font-weight:800;letter-spacing:8px;color:#c65a2e;">
-                  ${otp}
-                </span>
+                <div style="margin:24px 0;text-align:center;">
+                  <div style="display:inline-block;background:#fff0e7;border:1px solid #e5b69e;border-radius:14px;padding:16px 24px;">
+                    <span style="font-size:30px;font-weight:800;letter-spacing:8px;color:#c65a2e;">
+                      ${otp}
+                    </span>
+                  </div>
+                </div>
+
+                <p style="font-size:13px;color:#8b7a70;">
+                  This code expires in 10 minutes.
+                </p>
+
+                <p style="font-size:12px;color:#a09086;margin-top:24px;">
+                  Restro POS
+                </p>
+
               </div>
             </div>
+          `,
+        }),
+      }
+    );
 
-            <p style="font-size:13px;color:#8b7a70;">
-              This code expires in 10 minutes.
-            </p>
+    if (!response.ok) {
+      const errorBody =
+        await response.text();
 
-            <p style="font-size:12px;color:#a09086;margin-top:24px;">
-              Restro POS
-            </p>
-
-          </div>
-        </div>
-      `,
-    });
-
-    console.log("✅ Verification email sent:", info.messageId);
-
-    return info;
-  } catch (error) {
-    console.error("❌ Verification email failed:", error);
-    throw error;
-  }
-};
+      throw new Error(
+        `Brevo API error (${response.status}): ${errorBody}`
+      );
+    }
+  };
 
 module.exports = {
-  transporter,
   generateOtp,
   hashOtp,
   sendVerificationEmail,
