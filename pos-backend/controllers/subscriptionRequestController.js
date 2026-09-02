@@ -35,22 +35,47 @@ const createSubscriptionRequest =
         );
       }
 
-      const {
+           const {
         plan,
         duration,
-        paymentReference,
+        paymentScreenshot,
         paymentNote,
       } = req.body;
 
       if (
         !plan ||
         !duration ||
-        !paymentReference?.trim()
+        !paymentScreenshot
       ) {
         return next(
           createHttpError(
             400,
-            "Plan, duration and payment reference are required."
+            "Plan, duration and a payment screenshot are required."
+          )
+        );
+      }
+
+      if (
+        !/^data:image\/(png|jpe?g|webp);base64,/.test(
+          paymentScreenshot
+        )
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Payment screenshot must be a PNG, JPG or WEBP image."
+          )
+        );
+      }
+
+      if (
+        paymentScreenshot.length >
+        5_500_000
+      ) {
+        return next(
+          createHttpError(
+            400,
+            "Payment screenshot is too large. Please use an image under 4MB."
           )
         );
       }
@@ -158,38 +183,55 @@ const createSubscriptionRequest =
             false,
         });
 
-      const request =
-        await SubscriptionRequest.create(
-          {
-            restaurantId:
-              restaurant._id,
+      let request;
 
-            user:
-              user._id,
+      try {
+        request =
+          await SubscriptionRequest.create(
+            {
+              restaurantId:
+                restaurant._id,
 
-            name:
-              user.name,
+              user:
+                user._id,
 
-            email:
-              user.email,
+              name:
+                user.name,
 
-            plan,
+              email:
+                user.email,
 
-            duration,
+              plan,
 
-            amount,
+              duration,
 
-            paymentReference:
-              paymentReference.trim(),
+              amount,
 
-            paymentNote:
-              paymentNote?.trim() ||
-              "",
+              paymentScreenshot,
 
-            status:
-              "Pending",
-          }
-        );
+              paymentNote:
+                paymentNote?.trim() ||
+                "",
+
+              status:
+                "Pending",
+            }
+          );
+      } catch (createError) {
+        if (
+          createError?.code ===
+          11000
+        ) {
+          return next(
+            createHttpError(
+              400,
+              "This restaurant already has a pending subscription request."
+            )
+          );
+        }
+
+        throw createError;
+      }
 
       return res.status(201).json({
         success: true,

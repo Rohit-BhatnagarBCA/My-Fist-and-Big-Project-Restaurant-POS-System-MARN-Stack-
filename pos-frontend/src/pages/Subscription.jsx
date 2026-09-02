@@ -1,20 +1,10 @@
-import React, {
-  useEffect,
-  useState,
-} from "react";
+import React, { useEffect, useState } from "react";
 
-import {
-  useMutation,
-  useQuery,
-} from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
-import {
-  enqueueSnackbar,
-} from "notistack";
+import { enqueueSnackbar } from "notistack";
 
-import {
-  useNavigate,
-} from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import { motion } from "framer-motion";
 
@@ -41,35 +31,111 @@ import {
   getUserData,
 } from "../https";
 
-import {
-  setUser,
-} from "../redux/slices/userSlice";
+import { setUser } from "../redux/slices/userSlice";
 
 const Subscription = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  //  const [selectedPlan, setSelectedPlan] =
-  //   useState("Basic");
+  const [selectedPlan, setSelectedPlan] = useState("Pro");
+  const [selectedDuration, setSelectedDuration] = useState("Monthly");
 
-    const [selectedPlan, setSelectedPlan] =
-    useState("Pro");
+  const [screenshotFile, setScreenshotFile] = useState(null);
+  const [screenshotPreview, setScreenshotPreview] = useState(null);
 
-  const [selectedDuration, setSelectedDuration] =
-    useState("Monthly");
+  const [paymentNote, setPaymentNote] = useState("");
 
-  const [paymentReference, setPaymentReference] =
-    useState("");
+  // ==========================================================
+  // PAGE TITLE
+  // ==========================================================
 
-  const [paymentNote, setPaymentNote] =
-    useState("");
+  useEffect(() => {
+    document.title = "POS | Subscription";
+  }, []);
 
-  const plan = BUSINESS_PLANS.find(
-    (item) => item.id === selectedPlan
-  );
+  // ==========================================================
+  // SELECTED PLAN
+  // ==========================================================
 
-  const amount =
-    plan?.prices?.[selectedDuration] || 0;
+  const plan =
+    BUSINESS_PLANS?.find((item) => item.id === selectedPlan) ||
+    BUSINESS_PLANS?.[0] ||
+    null;
+
+  const amount = Number(plan?.prices?.[selectedDuration] || 0);
+
+  // ==========================================================
+  // SCREENSHOT HANDLER
+  // ==========================================================
+
+  const handleScreenshotChange = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const allowedTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      enqueueSnackbar(
+        "Please upload a PNG, JPG or WEBP image.",
+        {
+          variant: "warning",
+        }
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 4 * 1024 * 1024) {
+      enqueueSnackbar(
+        "Image is too large. Please use one under 4MB.",
+        {
+          variant: "warning",
+        }
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const result = reader.result;
+
+      if (typeof result !== "string") {
+        enqueueSnackbar(
+          "Unable to read the selected image.",
+          {
+            variant: "error",
+          }
+        );
+
+        return;
+      }
+
+      setScreenshotFile(result);
+      setScreenshotPreview(result);
+    };
+
+    reader.onerror = () => {
+      enqueueSnackbar(
+        "Unable to read the selected image.",
+        {
+          variant: "error",
+        }
+      );
+    };
+
+    reader.readAsDataURL(file);
+  };
 
   // ==========================================================
   // REQUEST HISTORY
@@ -78,65 +144,129 @@ const Subscription = () => {
   const {
     data: requestsResponse,
     isLoading: requestsLoading,
+    isError: requestsError,
     refetch: refetchRequests,
   } = useQuery({
     queryKey: ["my-subscription-requests"],
     queryFn: getMySubscriptionRequests,
+
+    // Don't let temporary API errors destroy the page.
+    retry: 1,
   });
 
-  const requests =
-    requestsResponse?.data?.data || [];
+  const requests = Array.isArray(requestsResponse?.data?.data)
+    ? requestsResponse.data.data
+    : [];
 
-  const latestRequest =
-    requests[0] || null;
+  const sortedRequests = [...requests].sort((a, b) => {
+    const dateA = new Date(
+      a?.createdAt || a?.updatedAt || 0
+    ).getTime();
 
-  const hasPendingRequest =
-    requests.some(
-      (request) =>
-        request.status === "Pending"
-    );
+    const dateB = new Date(
+      b?.createdAt || b?.updatedAt || 0
+    ).getTime();
+
+    return dateB - dateA;
+  });
+
+  const latestRequest = sortedRequests[0] || null;
+
+  const hasPendingRequest = sortedRequests.some(
+    (request) =>
+      String(request?.status || "").toLowerCase() ===
+      "pending"
+  );
 
   // ==========================================================
   // CREATE REQUEST
   // ==========================================================
 
-  const createRequestMutation =
-    useMutation({
-      mutationFn: createSubscriptionRequest,
+  const createRequestMutation = useMutation({
+    mutationFn: createSubscriptionRequest,
 
-      onSuccess: () => {
-        enqueueSnackbar(
-          "Subscription request submitted successfully!",
-          {
-            variant: "success",
-          }
-        );
+    onSuccess: async () => {
+      enqueueSnackbar(
+        "Subscription request submitted successfully!",
+        {
+          variant: "success",
+        }
+      );
 
-        setPaymentReference("");
-        setPaymentNote("");
+      setScreenshotFile(null);
+      setScreenshotPreview(null);
+      setPaymentNote("");
 
-        refetchRequests();
-      },
+      await refetchRequests();
+    },
 
-      onError: (error) => {
-        enqueueSnackbar(
-          error?.response?.data?.message ||
-            "Unable to submit subscription request.",
-          {
-            variant: "error",
-          }
-        );
-      },
-    });
+    onError: (error) => {
+      console.error(
+        "Create subscription request error:",
+        error
+      );
+
+      enqueueSnackbar(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to submit subscription request.",
+        {
+          variant: "error",
+        }
+      );
+    },
+  });
 
   // ==========================================================
   // SUBMIT REQUEST
   // ==========================================================
 
   const handleSubmitRequest = () => {
-    if (!paymentReference.trim()) {
+    if (createRequestMutation.isPending) {
+      return;
+    }
+
+    if (hasPendingRequest) {
       enqueueSnackbar(
-        "Please enter your payment reference / UTR.",
+        "You already have a pending subscription request.",
+        {
+          variant: "warning",
+        }
+      );
+
+      return;
+    }
+
+    if (!selectedPlan) {
+      enqueueSnackbar("Please select a plan.", {
+        variant: "warning",
+      });
+
+      return;
+    }
+
+    if (!selectedDuration) {
+      enqueueSnackbar("Please select a duration.", {
+        variant: "warning",
+      });
+
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      enqueueSnackbar(
+        "Invalid subscription amount.",
+        {
+          variant: "error",
+        }
+      );
+
+      return;
+    }
+
+    if (!screenshotFile) {
+      enqueueSnackbar(
+        "Please attach a screenshot of your payment.",
         {
           variant: "warning",
         }
@@ -148,8 +278,7 @@ const Subscription = () => {
     createRequestMutation.mutate({
       plan: selectedPlan,
       duration: selectedDuration,
-      paymentReference:
-        paymentReference.trim(),
+      paymentScreenshot: screenshotFile,
       paymentNote: paymentNote.trim(),
     });
   };
@@ -160,9 +289,9 @@ const Subscription = () => {
 
   const refreshSession = async () => {
     try {
-      const { data } = await getUserData();
+      const response = await getUserData();
 
-      const userData = data?.data;
+      const userData = response?.data?.data;
 
       if (!userData?._id) {
         throw new Error(
@@ -170,35 +299,63 @@ const Subscription = () => {
         );
       }
 
+      /*
+       * restaurantId can sometimes be:
+       *
+       * 1. Populated restaurant object
+       * 2. Just restaurant ObjectId string
+       *
+       * So don't assume restaurantId is always an object.
+       */
+
       const restaurant =
-        userData.restaurantId || null;
+        userData?.restaurantId &&
+        typeof userData.restaurantId === "object"
+          ? userData.restaurantId
+          : null;
+
+      /*
+       * Prefer restaurant subscription if it exists.
+       * Otherwise use user's subscription.
+       */
 
       const restaurantSubscription =
         restaurant?.subscription || null;
 
       const userSubscription =
-        userData.subscription || null;
+        userData?.subscription || null;
 
-      const subscription =
+      let subscription = null;
+
+      if (
         restaurantSubscription &&
-        (
-          restaurantSubscription.startDate ||
-          restaurantSubscription.expiryDate ||
-          restaurantSubscription.plan
-        )
-          ? restaurantSubscription
-          : userSubscription;
+        typeof restaurantSubscription === "object"
+      ) {
+        subscription = restaurantSubscription;
+      } else if (
+        userSubscription &&
+        typeof userSubscription === "object"
+      ) {
+        subscription = userSubscription;
+      }
+
+      // ======================================================
+      // UPDATE REDUX USER
+      // ======================================================
 
       dispatch(
         setUser({
           _id: userData._id,
-          name: userData.name,
-          email: userData.email,
-          phone: userData.phone,
-          role: userData.role,
+          name: userData.name || "",
+          email: userData.email || "",
+          phone: userData.phone || "",
+          role: userData.role || "",
 
           restaurantId:
-            restaurant?._id || null,
+            restaurant?._id ||
+            (typeof userData.restaurantId === "string"
+              ? userData.restaurantId
+              : null),
 
           restaurant,
 
@@ -220,7 +377,8 @@ const Subscription = () => {
       );
 
       enqueueSnackbar(
-        "Could not refresh your account status. Please try again.",
+        error?.response?.data?.message ||
+          "Could not refresh your account status. Please try again.",
         {
           variant: "error",
         }
@@ -235,6 +393,17 @@ const Subscription = () => {
   // ==========================================================
 
   const handleEnterPOS = async () => {
+    if (latestRequest?.status !== "Approved") {
+      enqueueSnackbar(
+        "Your subscription request is not approved yet.",
+        {
+          variant: "warning",
+        }
+      );
+
+      return;
+    }
+
     const result = await refreshSession();
 
     if (!result) {
@@ -247,8 +416,11 @@ const Subscription = () => {
       subscription,
     } = result;
 
-    // SuperAdmin
-    if (userData.role === "SuperAdmin") {
+    // ======================================================
+    // SUPER ADMIN
+    // ======================================================
+
+    if (userData?.role === "SuperAdmin") {
       navigate("/super-admin", {
         replace: true,
       });
@@ -256,7 +428,9 @@ const Subscription = () => {
       return;
     }
 
-    const now = new Date();
+    // ======================================================
+    // SUBSCRIPTION DATES
+    // ======================================================
 
     const startDate =
       subscription?.startDate
@@ -268,21 +442,39 @@ const Subscription = () => {
         ? new Date(subscription.expiryDate)
         : null;
 
+    const startTime = startDate?.getTime();
+    const expiryTime = expiryDate?.getTime();
+
     const validDates =
-      startDate &&
-      expiryDate &&
-      !Number.isNaN(startDate.getTime()) &&
-      !Number.isNaN(expiryDate.getTime());
+      Number.isFinite(startTime) &&
+      Number.isFinite(expiryTime);
+
+    const now = new Date().getTime();
 
     const activeSubscription =
-      Boolean(
-        validDates &&
-          now >= startDate &&
-          now < expiryDate
-      );
+      validDates &&
+      now >= startTime &&
+      now < expiryTime;
+
+    // ======================================================
+    // RESTAURANT STATUS
+    // ======================================================
+
+    /*
+     * If restaurant information exists, check its status.
+     * If it isn't available, don't automatically crash.
+     */
+
+    const restaurantStatus =
+      restaurant?.status;
 
     const restaurantActive =
-      restaurant?.status === "active";
+      restaurantStatus === "active" ||
+      restaurantStatus === "Active";
+
+    // ======================================================
+    // ENTER POS
+    // ======================================================
 
     if (
       activeSubscription &&
@@ -296,7 +488,9 @@ const Subscription = () => {
     }
 
     enqueueSnackbar(
-      "Your subscription is not currently active.",
+      !activeSubscription
+        ? "Your subscription is not currently active."
+        : "Your restaurant is not currently active.",
       {
         variant: "warning",
       }
@@ -308,19 +502,15 @@ const Subscription = () => {
   };
 
   // ==========================================================
-  // PAGE TITLE
-  // ==========================================================
-
-  useEffect(() => {
-    document.title = "POS | Subscription";
-  }, []);
-
-  // ==========================================================
   // STATUS ICON
   // ==========================================================
 
   const getStatusIcon = (status) => {
-    if (status === "Approved") {
+    const normalizedStatus = String(
+      status || ""
+    ).toLowerCase();
+
+    if (normalizedStatus === "approved") {
       return (
         <FiCheckCircle
           className="text-[#8FB89C]"
@@ -329,7 +519,7 @@ const Subscription = () => {
       );
     }
 
-    if (status === "Rejected") {
+    if (normalizedStatus === "rejected") {
       return (
         <FiXCircle
           className="text-[#d77958]"
@@ -345,6 +535,20 @@ const Subscription = () => {
       />
     );
   };
+
+  // ==========================================================
+  // FORMAT AMOUNT
+  // ==========================================================
+
+  const formatAmount = (value) => {
+    const numericValue = Number(value || 0);
+
+    return numericValue.toLocaleString("en-IN");
+  };
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
     <div className="min-h-screen bg-[#12181F] text-[#F3EEE3] px-6 py-10">
@@ -388,17 +592,17 @@ const Subscription = () => {
 
         <div className="flex justify-center mb-10">
           <div className="flex flex-wrap gap-2 bg-[#1B222B] p-2 rounded-lg">
-            {DURATIONS.map((duration) => (
+            {DURATIONS?.map((duration) => (
               <button
                 key={duration.id}
+                type="button"
                 onClick={() =>
                   setSelectedDuration(
                     duration.id
                   )
                 }
                 className={`px-5 py-2.5 rounded-md text-sm transition ${
-                  selectedDuration ===
-                  duration.id
+                  selectedDuration === duration.id
                     ? "bg-[#BD5D31] text-[#F3EEE3]"
                     : "text-[#a89e8b] hover:text-[#F3EEE3]"
                 }`}
@@ -414,18 +618,21 @@ const Subscription = () => {
            ================================================== */}
 
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          {BUSINESS_PLANS.map((item) => {
+          {BUSINESS_PLANS?.map((item) => {
             const selected =
               selectedPlan === item.id;
 
-            const price =
-              item.prices[selectedDuration];
+            const price = Number(
+              item?.prices?.[selectedDuration] || 0
+            );
 
             const savings =
-              savingsLabel(
-                item,
-                selectedDuration
-              );
+              savingsLabel
+                ? savingsLabel(
+                    item,
+                    selectedDuration
+                  )
+                : "";
 
             return (
               <motion.div
@@ -434,9 +641,7 @@ const Subscription = () => {
                   y: -5,
                 }}
                 onClick={() =>
-                  setSelectedPlan(
-                    item.id
-                  )
+                  setSelectedPlan(item.id)
                 }
                 className={`cursor-pointer rounded-xl p-7 border transition ${
                   selected
@@ -461,9 +666,7 @@ const Subscription = () => {
                 <div className="mt-6">
                   <span className="text-4xl font-bold">
                     ₹
-                    {price.toLocaleString(
-                      "en-IN"
-                    )}
+                    {formatAmount(price)}
                   </span>
 
                   <span className="text-[#8a806c] ml-2">
@@ -478,20 +681,21 @@ const Subscription = () => {
                 )}
 
                 <div className="mt-7 space-y-3">
-                  {item.features.map(
-                    (feature) => (
-                      <div
-                        key={feature}
-                        className="flex gap-3 text-sm text-[#d8cfbd]"
-                      >
-                        <FiCheck className="text-[#8FB89C] mt-0.5 shrink-0" />
+                  {Array.isArray(item.features) &&
+                    item.features.map(
+                      (feature) => (
+                        <div
+                          key={feature}
+                          className="flex gap-3 text-sm text-[#d8cfbd]"
+                        >
+                          <FiCheck className="text-[#8FB89C] mt-0.5 shrink-0" />
 
-                        <span>
-                          {feature}
-                        </span>
-                      </div>
-                    )
-                  )}
+                          <span>
+                            {feature}
+                          </span>
+                        </div>
+                      )
+                    )}
                 </div>
               </motion.div>
             );
@@ -504,7 +708,9 @@ const Subscription = () => {
 
         <div className="max-w-4xl mx-auto mt-10 grid lg:grid-cols-2 gap-6">
 
-          {/* QR */}
+          {/* ==================================================
+              QR
+             ================================================== */}
 
           <div className="bg-[#1B222B] rounded-xl border border-[#2d3540] p-6">
             <p className="font-['Space_Mono',_monospace] text-xs tracking-widest text-[#BD5D31] mb-3">
@@ -530,7 +736,7 @@ const Subscription = () => {
                     "none";
 
                   const fallback =
-                    event.currentTarget.parentElement.querySelector(
+                    event.currentTarget.parentElement?.querySelector(
                       "[data-qr-fallback]"
                     );
 
@@ -571,7 +777,7 @@ const Subscription = () => {
                 </span>
 
                 <span className="font-semibold">
-                  {plan?.name}
+                  {plan?.name || selectedPlan}
                 </span>
               </div>
 
@@ -591,16 +797,15 @@ const Subscription = () => {
                 </span>
 
                 <span className="font-bold text-[#BD5D31]">
-                  ₹
-                  {amount.toLocaleString(
-                    "en-IN"
-                  )}
+                  ₹{formatAmount(amount)}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* PAYMENT FORM */}
+          {/* ==================================================
+              PAYMENT FORM
+             ================================================== */}
 
           <div className="bg-[#1B222B] rounded-xl border border-[#2d3540] p-6">
             <p className="font-['Space_Mono',_monospace] text-xs tracking-widest text-[#BD5D31] mb-3">
@@ -612,29 +817,60 @@ const Subscription = () => {
             </h2>
 
             <p className="text-sm text-[#a89e8b] mb-6">
-              Enter your UTR / transaction
-              reference. Super Admin will
-              verify it manually.
+              Attach a screenshot of your
+              payment (UPI/QR confirmation).
+              Super Admin will verify it
+              manually.
             </p>
 
+            {/* PAYMENT SCREENSHOT */}
+
             <label className="block text-xs font-semibold tracking-widest text-[#a89e8b] mb-2">
-              PAYMENT REFERENCE / UTR
+              PAYMENT SCREENSHOT
             </label>
 
-            <input
-              type="text"
-              value={paymentReference}
-              onChange={(event) =>
-                setPaymentReference(
-                  event.target.value
-                )
-              }
-              placeholder="Enter UTR / transaction ID"
-              disabled={
-                hasPendingRequest
-              }
-              className="w-full bg-[#242c38] border border-[#3a4452] rounded-lg px-4 py-3 text-sm text-[#F3EEE3] placeholder:text-[#6f7782] focus:outline-none focus:border-[#BD5D31] disabled:opacity-50"
-            />
+            <label
+              className={`flex flex-col items-center justify-center gap-2 w-full border-2 border-dashed rounded-lg px-4 py-6 text-sm cursor-pointer transition-colors ${
+                hasPendingRequest ||
+                createRequestMutation.isPending
+                  ? "opacity-50 pointer-events-none border-[#3a4452] text-[#6f7782]"
+                  : "border-[#3a4452] text-[#a89e8b] hover:border-[#BD5D31]"
+              }`}
+            >
+              {screenshotPreview ? (
+                <img
+                  src={screenshotPreview}
+                  alt="Payment screenshot preview"
+                  className="max-h-48 rounded-lg object-contain"
+                />
+              ) : (
+                <>
+                  <FiUpload size={22} />
+
+                  <span>
+                    Tap to upload a
+                    screenshot (PNG,
+                    JPG, WEBP — max
+                    4MB)
+                  </span>
+                </>
+              )}
+
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={
+                  handleScreenshotChange
+                }
+                disabled={
+                  hasPendingRequest ||
+                  createRequestMutation.isPending
+                }
+                className="hidden"
+              />
+            </label>
+
+            {/* PAYMENT NOTE */}
 
             <label className="block text-xs font-semibold tracking-widest text-[#a89e8b] mb-2 mt-5">
               PAYMENT NOTE
@@ -650,12 +886,16 @@ const Subscription = () => {
               placeholder="Optional payment note"
               rows={4}
               disabled={
-                hasPendingRequest
+                hasPendingRequest ||
+                createRequestMutation.isPending
               }
               className="w-full bg-[#242c38] border border-[#3a4452] rounded-lg px-4 py-3 text-sm text-[#F3EEE3] placeholder:text-[#6f7782] focus:outline-none focus:border-[#BD5D31] resize-none disabled:opacity-50"
             />
 
+            {/* SUBMIT */}
+
             <button
+              type="button"
               onClick={
                 handleSubmitRequest
               }
@@ -705,89 +945,152 @@ const Subscription = () => {
               <div className="p-6 text-sm text-[#a89e8b]">
                 Loading requests...
               </div>
-            ) : requests.length === 0 ? (
+            ) : requestsError ? (
+              <div className="p-6">
+                <p className="text-sm text-[#d77958]">
+                  Unable to load subscription requests.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => refetchRequests()}
+                  className="mt-3 px-4 py-2 rounded-lg bg-[#BD5D31] text-sm font-semibold"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : sortedRequests.length === 0 ? (
               <div className="p-6 text-sm text-[#a89e8b]">
                 No subscription requests yet.
               </div>
             ) : (
               <div className="divide-y divide-[#2d3540]">
-                {requests.map((request) => (
-                  <div
-                    key={request._id}
-                    className="p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(
-                          request.status
-                        )}
+                {sortedRequests.map(
+                  (request) => {
+                    const status =
+                      request?.status || "Pending";
 
-                        <span className="font-semibold">
-                          {request.plan} ·{" "}
-                          {request.duration}
-                        </span>
-                      </div>
+                    const normalizedStatus =
+                      String(status).toLowerCase();
 
-                      <p className="text-xs text-[#8a806c] mt-2">
-                        Amount: ₹
-                        {request.amount}
-                      </p>
+                    const requestAmount =
+                      Number(
+                        request?.amount || 0
+                      );
 
-                      <p className="text-xs text-[#8a806c] mt-1">
-                        Reference:{" "}
-                        {
-                          request.paymentReference
+                    return (
+                      <div
+                        key={
+                          request?._id ||
+                          `${request?.plan}-${request?.createdAt}`
                         }
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <span
-                        className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
-                          request.status ===
-                          "Approved"
-                            ? "bg-[#25392c] text-[#8FB89C]"
-                            : request.status ===
-                              "Rejected"
-                            ? "bg-[#3a2925] text-[#d77958]"
-                            : "bg-[#3a2c1f] text-[#e0a35c]"
-                        }`}
+                        className="p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
                       >
-                        {request.status}
-                      </span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            {getStatusIcon(
+                              status
+                            )}
 
-                      {request.subscriptionStart && (
-                        <p className="text-xs text-[#8a806c] mt-2">
-                          Starts{" "}
-                          {new Date(
-                            request.subscriptionStart
-                          ).toLocaleString(
-                            "en-IN"
+                            <span className="font-semibold">
+                              {request?.plan ||
+                                "Unknown Plan"}{" "}
+                              ·{" "}
+                              {request?.duration ||
+                                "Unknown Duration"}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-[#8a806c] mt-2">
+                            Amount: ₹
+                            {formatAmount(
+                              requestAmount
+                            )}
+                          </p>
+
+                          {/* PAYMENT SCREENSHOT */}
+
+                          {request?.paymentScreenshot && (
+                            <a
+                              href={
+                                request.paymentScreenshot
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-block mt-2"
+                            >
+                              <img
+                                src={
+                                  request.paymentScreenshot
+                                }
+                                alt="Payment screenshot"
+                                className="h-16 w-16 object-cover rounded-lg border border-[#3a4452] hover:border-[#BD5D31] transition-colors"
+                                onError={(
+                                  event
+                                ) => {
+                                  event.currentTarget.style.display =
+                                    "none";
+                                }}
+                              />
+                            </a>
                           )}
-                        </p>
-                      )}
+                        </div>
 
-                      {request.subscriptionExpiry && (
-                        <p className="text-xs text-[#8a806c] mt-1">
-                          Valid till{" "}
-                          {new Date(
-                            request.subscriptionExpiry
-                          ).toLocaleString(
-                            "en-IN"
+                        <div className="text-right">
+                          <span
+                            className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
+                              normalizedStatus ===
+                              "approved"
+                                ? "bg-[#25392c] text-[#8FB89C]"
+                                : normalizedStatus ===
+                                  "rejected"
+                                ? "bg-[#3a2925] text-[#d77958]"
+                                : "bg-[#3a2c1f] text-[#e0a35c]"
+                            }`}
+                          >
+                            {status}
+                          </span>
+
+                          {/* START DATE */}
+
+                          {request?.subscriptionStart && (
+                            <p className="text-xs text-[#8a806c] mt-2">
+                              Starts{" "}
+                              {new Date(
+                                request.subscriptionStart
+                              ).toLocaleString(
+                                "en-IN"
+                              )}
+                            </p>
                           )}
-                        </p>
-                      )}
 
-                      {request.rejectionReason && (
-                        <p className="text-xs text-[#d77958] mt-2 max-w-xs">
-                          {
-                            request.rejectionReason
-                          }
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                          {/* EXPIRY DATE */}
+
+                          {request?.subscriptionExpiry && (
+                            <p className="text-xs text-[#8a806c] mt-1">
+                              Valid till{" "}
+                              {new Date(
+                                request.subscriptionExpiry
+                              ).toLocaleString(
+                                "en-IN"
+                              )}
+                            </p>
+                          )}
+
+                          {/* REJECTION */}
+
+                          {request?.rejectionReason && (
+                            <p className="text-xs text-[#d77958] mt-2 max-w-xs">
+                              {
+                                request.rejectionReason
+                              }
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                )}
               </div>
             )}
           </div>
@@ -797,7 +1100,9 @@ const Subscription = () => {
             ENTER POS
            ================================================== */}
 
-        {latestRequest?.status === "Approved" && (
+        {String(
+          latestRequest?.status || ""
+        ).toLowerCase() === "approved" && (
           <div className="max-w-4xl mx-auto mt-6">
             <div className="bg-[#25392c] border border-[#8FB89C]/30 rounded-xl p-5 text-center">
 
@@ -811,12 +1116,12 @@ const Subscription = () => {
               </p>
 
               <button
+                type="button"
                 onClick={handleEnterPOS}
                 className="mt-3 px-6 py-2 rounded-lg bg-[#8FB89C] text-[#12181F] font-bold hover:bg-[#9fc9ad] transition"
               >
                 ENTER POS
               </button>
-
             </div>
           </div>
         )}

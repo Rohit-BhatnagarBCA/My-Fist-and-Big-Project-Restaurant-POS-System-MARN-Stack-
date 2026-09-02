@@ -7,7 +7,6 @@ const subscriptionRequestSchema =
         type: mongoose.Schema.Types.ObjectId,
         ref: "Restaurant",
         required: true,
-        index: true,
       },
 
       user: {
@@ -52,11 +51,13 @@ const subscriptionRequestSchema =
         min: 1,
       },
 
-      paymentReference: {
+      // Base64 data URI of the payment screenshot the admin
+      // uploaded (QR/UPI confirmation). Stored directly in
+      // Mongo rather than on disk, since Render's filesystem
+      // is wiped on every redeploy/restart.
+      paymentScreenshot: {
         type: String,
         required: true,
-        trim: true,
-        maxlength: 100,
       },
 
       paymentNote: {
@@ -114,6 +115,29 @@ subscriptionRequestSchema.index({
   restaurantId: 1,
   status: 1,
 });
+
+// ============================================================
+// HARD LOCK — at most one Pending request per restaurant.
+//
+// The controller already checks this before creating a
+// request, but that check-then-create is not atomic: two
+// requests fired at nearly the same time (e.g. a script
+// hammering the endpoint) could both pass the check before
+// either one finishes writing. This partial unique index
+// makes MongoDB itself the final gatekeeper — it will
+// reject any second "Pending" document for the same
+// restaurant outright, no matter how many requests race in.
+// ============================================================
+
+subscriptionRequestSchema.index(
+  { restaurantId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: "Pending",
+    },
+  }
+);
 
 module.exports =
   mongoose.model(

@@ -447,19 +447,15 @@ const SuperAdmin =
         search,
       ]);
 
-    const pendingRequests =
-      requests.filter(
-        (request) =>
-          request.status ===
-          "Pending"
-      );
+   const pendingRequests = requests.filter(
+  (request) =>
+    String(request?.status || "").toLowerCase() === "pending"
+);
 
-    const activeRestaurants =
-      restaurants.filter(
-        (restaurant) =>
-          restaurant.status ===
-          "active"
-      );
+ const activeRestaurants = restaurants.filter(
+  (restaurant) =>
+    String(restaurant?.status || "").toLowerCase() === "active"
+);
 
     // ========================================================
     // APPROVE MODAL
@@ -1135,246 +1131,248 @@ const SuperAdmin =
               REQUESTS
              ================================================== */}
 
-          {activeTab ===
-            "requests" && (
-            <section className="bg-[#1B222B] border border-[#2a323d] rounded-xl overflow-hidden">
+       {activeTab === "requests" && (
+  <section className="bg-[#1B222B] border border-[#2a323d] rounded-xl overflow-hidden">
 
-              <div className="px-6 py-5 border-b border-[#2a323d]">
+    <div className="px-6 py-5 border-b border-[#2a323d]">
+      <h2 className="text-lg font-bold">
+        Subscription Requests
+      </h2>
 
-                <h2 className="text-lg font-bold">
-                  Subscription Requests
-                </h2>
+      <p className="text-xs text-[#8993A1] mt-1">
+        Verify payment and choose exact activation/expiry time.
+      </p>
+    </div>
 
-                <p className="text-xs text-[#8993A1] mt-1">
-                  Verify payment and choose exact activation/expiry time.
-                </p>
+    {requestsLoading ? (
+      <div className="p-8 text-[#8993A1]">
+        Loading requests...
+      </div>
+    ) : !Array.isArray(requests) || requests.length === 0 ? (
+      <div className="p-8 text-center text-[#8993A1]">
+        No subscription requests found.
+      </div>
+    ) : (
+      <div className="overflow-x-auto">
 
-              </div>
+        <table className="w-full min-w-[1100px]">
 
-              {requestsLoading ? (
-                <div className="p-8 text-[#8993A1]">
-                  Loading requests...
-                </div>
-              ) : requests.length ===
-                0 ? (
-                <div className="p-8 text-center text-[#8993A1]">
-                  No subscription requests found.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
+          <thead>
+            <tr className="border-b border-[#2a323d] text-left text-xs text-[#8993A1]">
 
-                  <table className="w-full min-w-[1100px]">
+              <th className="px-6 py-4">
+                RESTAURANT
+              </th>
 
-                    <thead>
-                      <tr className="border-b border-[#2a323d] text-left text-xs text-[#8993A1]">
+              <th className="px-6 py-4">
+                OWNER
+              </th>
 
-                        <th className="px-6 py-4">
-                          RESTAURANT
-                        </th>
+              <th className="px-6 py-4">
+                PLAN
+              </th>
 
-                        <th className="px-6 py-4">
-                          OWNER
-                        </th>
+              <th className="px-6 py-4">
+                AMOUNT
+              </th>
 
-                        <th className="px-6 py-4">
-                          PLAN
-                        </th>
+              <th className="px-6 py-4">
+                SCREENSHOT
+              </th>
 
-                        <th className="px-6 py-4">
-                          AMOUNT
-                        </th>
+              <th className="px-6 py-4">
+                STATUS
+              </th>
 
-                        <th className="px-6 py-4">
-                          PAYMENT REF
-                        </th>
+              <th className="px-6 py-4">
+                ACTION
+              </th>
 
-                        <th className="px-6 py-4">
-                          STATUS
-                        </th>
+            </tr>
+          </thead>
 
-                        <th className="px-6 py-4">
-                          ACTION
-                        </th>
+          <tbody>
 
-                      </tr>
-                    </thead>
+            {requests.map((request) => {
+              const owner = request?.user || null;
 
-                    <tbody>
+              const restaurant =
+                request?.restaurantId &&
+                typeof request.restaurantId === "object"
+                  ? request.restaurantId
+                  : null;
 
-                      {requests.map(
-                        (
-                          request
-                        ) => {
-                          const owner =
-                            request.user;
+              const amount = Number(
+                request?.amount || 0
+              );
 
-                          return (
-                            <tr
-                              key={
-                                request._id
-                              }
-                              className="border-b border-[#2a323d] last:border-0"
-                            >
+              const status =
+                request?.status || "Pending";
 
-                              <td className="px-6 py-5">
+              return (
+                <tr
+                  key={request?._id}
+                  className="border-b border-[#2a323d] last:border-0"
+                >
 
-                                <p className="font-semibold">
-                                  {
-                                    request
-                                      .restaurantId
-                                      ?.name ||
-                                    "Unknown restaurant"
-                                  }
-                                </p>
+                  {/* RESTAURANT */}
 
-                              </td>
+                  <td className="px-6 py-5">
 
-                              <td className="px-6 py-5">
+                    <p className="font-semibold">
+                      {restaurant?.name ||
+                        request?.restaurantName ||
+                        "Unknown restaurant"}
+                    </p>
 
-                                <p className="font-semibold">
-                                  {
-                                    owner?.name ||
-                                    request.name ||
-                                    "—"
-                                  }
-                                </p>
+                  </td>
 
-                                <p className="text-xs text-[#8993A1] mt-1">
-                                  {
-                                    owner?.email ||
-                                    request.email ||
-                                    "—"
-                                  }
-                                </p>
+                  {/* OWNER */}
 
-                                <p className="text-xs text-[#8993A1] mt-1">
-                                  {
-                                    owner?.phone ||
-                                    "—"
-                                  }
-                                </p>
+                  <td className="px-6 py-5">
 
-                              </td>
+                    <p className="font-semibold">
+                      {owner?.name ||
+                        request?.name ||
+                        "—"}
+                    </p>
 
-                              <td className="px-6 py-5">
+                    <p className="text-xs text-[#8993A1] mt-1">
+                      {owner?.email ||
+                        request?.email ||
+                        "—"}
+                    </p>
 
-                                <p className="font-semibold">
-                                  {
-                                    request.plan
-                                  }
-                                </p>
+                    <p className="text-xs text-[#8993A1] mt-1">
+                      {owner?.phone ||
+                        request?.phone ||
+                        "—"}
+                    </p>
 
-                                <p className="text-xs text-[#8993A1] mt-1">
-                                  {
-                                    request.duration
-                                  }
-                                </p>
+                  </td>
 
-                              </td>
+                  {/* PLAN */}
 
-                              <td className="px-6 py-5 font-bold text-[#BD5D31]">
-                                ₹
-                                {request.amount?.toLocaleString(
-                                  "en-IN"
-                                )}
-                              </td>
+                  <td className="px-6 py-5">
 
-                              <td className="px-6 py-5">
+                    <p className="font-semibold">
+                      {request?.plan || "—"}
+                    </p>
 
-                                <span className="text-xs bg-[#242c38] px-3 py-1.5 rounded-md">
-                                  {
-                                    request.paymentReference
-                                  }
-                                </span>
+                    <p className="text-xs text-[#8993A1] mt-1">
+                      {request?.duration || "—"}
+                    </p>
 
-                              </td>
+                  </td>
 
-                              <td className="px-6 py-5">
+                  {/* AMOUNT */}
 
-                                <span
-                                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ${
-                                    request.status ===
-                                    "Approved"
-                                      ? "bg-[#25392c] text-[#8FB89C]"
-                                      : request.status ===
-                                        "Rejected"
-                                      ? "bg-[#3a2925] text-[#d77958]"
-                                      : "bg-[#3a2c1f] text-[#e0a35c]"
-                                  }`}
-                                >
-                                  {request.status ===
-                                  "Approved" ? (
-                                    <FiCheckCircle />
-                                  ) : request.status ===
-                                    "Rejected" ? (
-                                    <FiXCircle />
-                                  ) : (
-                                    <FiClock />
-                                  )}
+                  <td className="px-6 py-5 font-bold text-[#BD5D31]">
+                   ₹{Number(
+                        approvingRequest?.amount || 0
+                         ).toLocaleString("en-IN")}
+                  </td>
 
-                                  {
-                                    request.status
-                                  }
+                  {/* SCREENSHOT */}
 
-                                </span>
+                  <td className="px-6 py-5">
 
-                              </td>
+                    {request?.paymentScreenshot ? (
+                      <a
+                        href={request.paymentScreenshot}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block"
+                      >
+                        <img
+                          src={request.paymentScreenshot}
+                          alt="Payment screenshot"
+                          className="h-10 w-10 object-cover rounded-md border border-[#3a4452] hover:border-[#BD5D31] transition-colors"
+                          onError={(event) => {
+                            event.currentTarget.style.display =
+                              "none";
+                          }}
+                        />
+                      </a>
+                    ) : (
+                      <span className="text-xs text-[#8993A1]">
+                        —
+                      </span>
+                    )}
 
-                              <td className="px-6 py-5">
+                  </td>
 
-                                {request.status ===
-                                "Pending" ? (
-                                  <div className="flex gap-2">
+                  {/* STATUS */}
 
-                                    <button
-                                      onClick={() =>
-                                        openApproval(
-                                          request
-                                        )
-                                      }
-                                      className="px-3 py-2 rounded-lg bg-[#25392c] text-[#8FB89C] text-xs font-bold"
-                                    >
-                                      Approve
-                                    </button>
+                  <td className="px-6 py-5">
 
-                                    <button
-                                      onClick={() => {
-                                        setRejectingRequest(
-                                          request
-                                        );
+                    <span
+                      className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
+                        String(status).toLowerCase() ===
+                        "approved"
+                          ? "bg-[#25392c] text-[#8FB89C]"
+                          : String(status).toLowerCase() ===
+                            "rejected"
+                          ? "bg-[#3a2925] text-[#d77958]"
+                          : "bg-[#3a2c1f] text-[#e0a35c]"
+                      }`}
+                    >
+                      {status}
+                    </span>
 
-                                        setRejectionReason(
-                                          ""
-                                        );
-                                      }}
-                                      className="px-3 py-2 rounded-lg bg-[#3a2925] text-[#d77958] text-xs font-bold"
-                                    >
-                                      Reject
-                                    </button>
+                  </td>
 
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-[#8993A1]">
-                                    Reviewed
-                                  </span>
-                                )}
+                  {/* ACTION */}
 
-                              </td>
+                  <td className="px-6 py-5">
+  {String(status).toLowerCase() === "pending" ? (
+    <div className="flex gap-2">
+      <button
+        type="button"
+        onClick={() => openApproval(request)}
+        disabled={reviewMutation.isPending}
+        className="px-3 py-2 rounded-lg bg-[#25392c] text-[#8FB89C] text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
+      >
+        <FiCheckCircle />
+        Approve
+      </button>
 
-                            </tr>
-                          );
-                        }
-                      )}
+      <button
+        type="button"
+        onClick={() => {
+          setRejectingRequest(request);
+          setRejectionReason("");
+        }}
+        disabled={reviewMutation.isPending}
+        className="px-3 py-2 rounded-lg bg-[#3a2925] text-[#d77958] text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
+      >
+        <FiXCircle />
+        Reject
+      </button>
+    </div>
+  ) : String(status).toLowerCase() === "approved" ? (
+    <span className="text-xs font-bold text-[#8FB89C]">
+      Approved
+    </span>
+  ) : (
+    <span className="text-xs font-bold text-[#d77958]">
+      Rejected
+    </span>
+  )}
+</td>
 
-                    </tbody>
+                </tr>
+              );
+            })}
 
-                  </table>
-                </div>
-              )}
+          </tbody>
 
-            </section>
-          )}
+        </table>
 
+      </div>
+    )}
+  </section>
+)}
           {/* ==================================================
               USERS
              ================================================== */}
@@ -1572,11 +1570,24 @@ const SuperAdmin =
                     )}
                   </p>
 
-                  <p className="text-xs text-[#8993A1] mt-1">
-                    {
-                      approvingRequest.paymentReference
-                    }
-                  </p>
+                                 {approvingRequest.paymentScreenshot && (
+                    <a
+                      href={
+                        approvingRequest.paymentScreenshot
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block mt-2"
+                   >
+                      <img
+                        src={
+                          approvingRequest.paymentScreenshot
+                        }
+                        alt="Payment screenshot"
+                        className="max-h-40 rounded-lg border border-[#3a4452] hover:border-[#BD5D31] transition-colors"
+                      />
+                    </a>
+                  )}
 
                 </div>
 

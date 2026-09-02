@@ -26,7 +26,9 @@ app.use(
   })
 );
 app.use(
-  express.json()
+   express.json({
+    limit: "6mb",
+  })
 );
 
 app.use(
