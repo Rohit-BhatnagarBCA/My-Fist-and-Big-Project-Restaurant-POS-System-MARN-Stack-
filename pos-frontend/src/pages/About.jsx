@@ -1100,8 +1100,13 @@ const About = () => {
                   <div className="absolute inset-0 bg-gradient-to-t from-[#2B1E17]/75 via-transparent to-[#C65A2E]/10" />
                 </div>
 
-                {/* Keep the founder photo unobstructed. The old centered R badge was covering the face. */}
-                <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#2B1E17]/45 to-transparent pointer-events-none" />
+                {/* <div className="absolute left-1/2 top-1/2 flex h-48 w-48 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/45 shadow-[0_25px_60px_rgba(74,44,29,.10)] backdrop-blur-sm sm:h-56 sm:w-56">
+
+                  <span className="text-[7rem] font-black tracking-[-0.08em] text-white/75 drop-shadow-lg sm:text-[8rem]">
+                    R
+                  </span>
+
+                </div> */}
 
                 <div className="absolute left-6 top-6 rounded-full border border-[#D5B5A1] bg-white/65 px-3 py-1.5 backdrop-blur">
                   <span
@@ -1840,39 +1845,76 @@ const About = () => {
       {/* ======================================================
           FOOTER
          ====================================================== */}
+<footer className="border-t border-[#E9DDD4] bg-[#FFFDF8]">
 
-      <footer className="border-t border-[#E9DDD4] bg-[#FFFDF8]">
+  <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
 
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 py-7 sm:px-8 md:flex-row lg:px-10">
+    <div className="flex flex-col gap-7 md:flex-row md:items-center md:justify-between">
 
-          <div className="flex items-center gap-2">
+      {/* BRAND */}
+      <div className="flex items-center gap-2">
+        <img
+          src={logo}
+          alt="Restro POS"
+          className="h-7 w-7 rounded-full"
+        />
 
-            <img
-              src={logo}
-              alt="Restro POS"
-              className="h-7 w-7 rounded-full"
-            />
+        <span className="text-sm font-bold text-[#2A201B]">
+          Restro POS
+        </span>
+      </div>
 
-            <span className="text-sm font-bold text-[#2A201B]">
-              Restro POS
-            </span>
+      {/* TAGLINE */}
+      <p className="text-center text-xs text-[#0f0f0f]">
+        Built for restaurants that want
+        less chaos and more control.
+      </p>
 
-          </div>
+      {/* CONTACT */}
+      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs">
 
-          <p className="text-center text-xs text-[#85766D]">
-            Built for restaurants that want
-            less chaos and more control.
-          </p>
+        {/* EMAIL */}
+        <a
+          href="mailto:YOUR_EMAIL@gmail.com"
+          className="text-[#0f0f0f] transition hover:text-[#C65A2E]"
+        >
+          rohitxmohit@gmail.com
+        </a>
 
-          <p className="text-[10px] text-[#9B8B81]">
-            ©{" "}
-            {new Date().getFullYear()}{" "}
-            Restro POS
-          </p>
+        {/* PHONE */}
+        <a
+          href="tel:+91 9131621271"
+          className="text-[#0f0f0f] transition hover:text-[#C65A2E]"
+        >
+          +91 91316 21271
+        </a>
 
-        </div>
+        {/* INSTAGRAM */}
+        <a
+          href="https://www.instagram.com/tryrestro_pos?igsi=MWU2dG02bGRnejhyOQ=="
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-[#0f0f0f] transition hover:text-[#C65A2E]"
+        >
+          Instagram
+        </a>
 
-      </footer>
+      </div>
+
+    </div>
+
+    {/* BOTTOM */}
+    <div className="mt-6 border-t border-[#E9DDD4] pt-5 text-center">
+
+      <p className="text-[10px] text-[#0f0f0f]">
+        © {new Date().getFullYear()} Restro POS
+      </p>
+
+    </div>
+
+  </div>
+
+</footer>
 
     </div>
   );
