@@ -205,9 +205,9 @@ const About = () => {
   );
 
   useEffect(() => {
-    document.title =
-      "Restro POS — Restaurant Management Made Simple";
-  }, []);
+  document.title =
+    "RESTRO POS — Restaurant POS & Restaurant Management Software";
+}, []);
 
   const logoutMutation = useMutation({
     mutationFn: logout,
@@ -449,12 +449,14 @@ const About = () => {
                   delay={0.12}
                 >
 
-                  <p className="mt-7 max-w-xl text-base leading-relaxed text-[#75685F] sm:text-lg">
-                    One simple place for your tables,
-                    orders, kitchen, team and billing.
-                    Built to make restaurant work feel
-                    lighter when the day gets busy.
-                  </p>
+                 <p className="mt-7 max-w-xl text-base leading-relaxed text-[#75685F] sm:text-lg">
+  RESTRO POS is a smart restaurant POS system
+  that brings tables, orders, kitchen KOT,
+  billing, staff, payments and restaurant
+  management together in one simple platform.
+  Built to make everyday restaurant work faster,
+  clearer and easier to manage.
+</p>
 
                 </Reveal>
 
@@ -984,10 +986,11 @@ const About = () => {
                 </h2>
               </div>
 
-              <p className="max-w-sm leading-relaxed text-[#796C62]">
-                No feature theatre. Just the things your
-                team will actually use.
-              </p>
+             <p className="max-w-sm leading-relaxed text-[#796C62]">
+  Everything you need to manage a restaurant —
+  from orders and kitchen KOT to tables, billing,
+  team management and real-time restaurant control.
+</p>
 
             </div>
 
